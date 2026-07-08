@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Puffin Game</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <div class="game-shell">
+        <div class="game-hud meter-hud" aria-label="Player status">
+          <div class="hud-meters">
+            <div class="hud-meter">
+              <span>Energy</span>
+              <div class="meter-track"><div id="hud-flight-fill" class="meter-fill flight"></div></div>
+            </div>
+            <div class="hud-meter">
+              <span>Health</span>
+              <div id="hud-health" class="health-squares"></div>
+            </div>
+            <div id="hud-oxygen" class="hud-meter">
+              <span>Oxygen <strong id="hud-oxygen-value">100/100</strong></span>
+              <div class="meter-track"><div id="hud-oxygen-fill" class="meter-fill oxygen"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="play-area">
+          <canvas id="game" aria-label="Puffin game canvas"></canvas>
+          <div id="discovery-toast" class="discovery-toast" hidden>
+            <strong>New Discovery</strong>
+            <div class="discovery-row">
+              <canvas id="discovery-picture" class="discovery-picture" width="96" height="96" aria-hidden="true"></canvas>
+              <span id="discovery-name">Basic penguin</span>
+            </div>
+          </div>
+          <div id="main-menu" class="main-menu">
+            <div class="menu-dialog" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+              <h1 id="menu-title">Puffin Platformer</h1>
+              <div class="dialog-actions">
+                <button id="play-game" type="button">Play</button>
+                <button id="shop-button" type="button">Shop</button>
+                <button id="journal-button" type="button">Journal</button>
+              </div>
+            </div>
+          </div>
+          <div id="journal-menu" class="main-menu" hidden>
+            <div class="journal-screen" role="dialog" aria-modal="true" aria-labelledby="journal-title">
+              <h1 id="journal-title">Journal</h1>
+              <div class="journal-grid">
+                <p id="journal-empty" class="journal-empty" hidden>No discoveries yet</p>
+                <button class="journal-card" type="button" data-penguin="basic" aria-label="Open Basic penguin journal entry">
+                  <canvas class="journal-penguin-picture" data-journal-penguin="basic" width="96" height="96" aria-hidden="true"></canvas>
+                  <span>Basic penguin</span>
+                </button>
+                <button class="journal-card" type="button" data-penguin="miner" aria-label="Open Miner penguin journal entry">
+                  <canvas class="journal-penguin-picture" data-journal-penguin="miner" width="96" height="96" aria-hidden="true"></canvas>
+                  <span>Miner penguin</span>
+                </button>
+                <button class="journal-card" type="button" data-penguin="diver" aria-label="Open Diver penguin journal entry">
+                  <canvas class="journal-penguin-picture" data-journal-penguin="diver" width="96" height="96" aria-hidden="true"></canvas>
+                  <span>Diver penguin</span>
+                </button>
+              </div>
+              <div id="journal-detail" class="journal-detail" hidden>
+                <article class="journal-detail-entry" data-penguin-detail="basic">
+                  <div class="journal-detail-picture">
+                    <canvas class="journal-penguin-picture large" data-journal-penguin="basic" width="220" height="220" aria-hidden="true"></canvas>
+                  </div>
+                  <div class="journal-detail-stats">
+                    <h2>Basic penguin</h2>
+                    <dl>
+                      <div><dt>Health</dt><dd>2</dd></div>
+                      <div><dt>Attack</dt><dd>1 damage</dd></div>
+                      <div><dt>Behavior</dt><dd>Runs, jumps, and chases when close</dd></div>
+                    </dl>
+                  </div>
+                </article>
+                <article class="journal-detail-entry" data-penguin-detail="miner" hidden>
+                  <div class="journal-detail-picture">
+                    <canvas class="journal-penguin-picture large" data-journal-penguin="miner" width="220" height="220" aria-hidden="true"></canvas>
+                  </div>
+                  <div class="journal-detail-stats">
+                    <h2>Miner penguin</h2>
+                    <dl>
+                      <div><dt>Health</dt><dd>2</dd></div>
+                      <div><dt>Hard hat</dt><dd>1/3 chance to block a stomp</dd></div>
+                      <div><dt>Pickaxe</dt><dd>1/3 chance to deal 2 damage</dd></div>
+                    </dl>
+                  </div>
+                </article>
+                <article class="journal-detail-entry" data-penguin-detail="diver" hidden>
+                  <div class="journal-detail-picture">
+                    <canvas class="journal-penguin-picture large" data-journal-penguin="diver" width="220" height="220" aria-hidden="true"></canvas>
+                  </div>
+                  <div class="journal-detail-stats">
+                    <h2>Diver penguin</h2>
+                    <dl>
+                      <div><dt>Health</dt><dd>1</dd></div>
+                      <div><dt>Attack</dt><dd>1 damage</dd></div>
+                      <div><dt>Behavior</dt><dd>Dives from above, then swims after you</dd></div>
+                    </dl>
+                  </div>
+                </article>
+              </div>
+              <button id="journal-detail-back" type="button" hidden>Back</button>
+              <button id="journal-back" type="button">Back</button>
+            </div>
+          </div>
+          <div id="levels-menu" class="main-menu" hidden>
+            <div class="levels-screen" role="dialog" aria-modal="true" aria-labelledby="levels-title">
+              <h1 id="levels-title">Levels</h1>
+              <div class="stage-selector" aria-label="Stage selector">
+                <button id="stage-previous" class="stage-arrow" type="button" aria-label="Previous stage">‹</button>
+                <strong id="stage-label">Stage 1</strong>
+                <button id="stage-next" class="stage-arrow" type="button" aria-label="Next stage">›</button>
+              </div>
+              <div class="level-grid">
+                <button class="level-button not-completed" data-level="1" type="button" aria-label="Level 1">
+                  <strong>1</strong>
+                  <span>Not completed</span>
+                </button>
+                <button class="level-button not-completed" data-level="2" type="button" aria-label="Level 2">
+                  <strong>2</strong>
+                  <span>Not completed</span>
+                </button>
+                <button class="level-button not-completed" data-level="3" type="button" aria-label="Level 3">
+                  <strong>3</strong>
+                  <span>Not completed</span>
+                </button>
+                <button class="level-button not-completed" data-level="4" type="button" aria-label="Level 4">
+                  <strong>4</strong>
+                  <span>Not completed</span>
+                </button>
+                <button class="level-button not-completed" data-level="5" type="button" aria-label="Level 5">
+                  <strong>5</strong>
+                  <span>Not completed</span>
+                </button>
+              </div>
+              <button id="levels-back" type="button">Back</button>
+            </div>
+          </div>
+          <div id="shop-menu" class="main-menu" hidden>
+            <div class="shop-screen" role="dialog" aria-modal="true" aria-labelledby="shop-title">
+              <h1 id="shop-title">Shop</h1>
+              <div class="feather-total">
+                <span class="feather-icon" aria-hidden="true"></span>
+                <strong id="shop-feather-total">0</strong>
+              </div>
+              <div class="shop-item">
+                <div>
+                  <strong>Health upgrade</strong>
+                  <span>+1 max health</span>
+                </div>
+                <button id="health-upgrade" type="button">
+                  <span class="feather-icon small" aria-hidden="true"></span>
+                  <span id="health-upgrade-cost">50</span>
+                </button>
+              </div>
+              <div class="shop-item flight-upgrade">
+                <div>
+                  <strong>Energy upgrade</strong>
+                  <span>+1 energy bar</span>
+                </div>
+                <button id="flight-upgrade" type="button">
+                  <span class="feather-icon small" aria-hidden="true"></span>
+                  <span id="flight-upgrade-cost">50</span>
+                </button>
+              </div>
+              <div class="shop-item">
+                <div>
+                  <strong>Speed upgrade</strong>
+                  <span>Move faster</span>
+                </div>
+                <button id="speed-upgrade" type="button">
+                  <span class="feather-icon small" aria-hidden="true"></span>
+                  <span id="speed-upgrade-cost">50</span>
+                </button>
+              </div>
+              <div class="shop-item">
+                <div>
+                  <strong>Oxygen upgrade</strong>
+                  <span>+10 oxygen</span>
+                </div>
+                <button id="oxygen-upgrade" type="button">
+                  <span class="feather-icon small" aria-hidden="true"></span>
+                  <span id="oxygen-upgrade-cost">50</span>
+                </button>
+              </div>
+              <button id="shop-back" type="button">Back</button>
+            </div>
+          </div>
+          <div id="death-overlay" class="death-overlay" hidden>
+            <div class="death-dialog" role="dialog" aria-modal="true" aria-labelledby="death-title">
+              <h1 id="death-title">You lost</h1>
+              <div class="dialog-actions">
+                <button id="try-again" type="button">Try again</button>
+                <button id="main-menu-button" type="button">Main menu</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="game-hud info-hud" aria-label="Game status">
+          <div class="hud-row">
+            <strong id="hud-stats">Level 1</strong>
+            <span id="hud-controls">Move: A/D or arrows · Jump/use energy: W/up · Peck: space · Duck: S/down</span>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="/dist/main.js"></script>
+  </body>
+</html>
