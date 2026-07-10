@@ -9,11 +9,14 @@ type Rect = Vector & {
 };
 
 type Platform = Rect & {
+  ceiling?: boolean;
+  fluidBarrier?: boolean;
   kind: "snow" | "ice";
   slope?: {
     startY: number;
     endY: number;
   };
+  wall?: boolean;
 };
 
 type Fish = Vector & {
@@ -34,6 +37,15 @@ type Feather = Vector & {
   velocity: Vector;
 };
 
+type FlyingFeather = Vector & {
+  age: number;
+  delay: number;
+  duration: number;
+  startX: number;
+  startY: number;
+  rotation: number;
+};
+
 type WaterSpit = Rect & {
   life: number;
   velocity: Vector;
@@ -42,6 +54,7 @@ type WaterSpit = Rect & {
 type Penguin = Rect & {
   alerted: boolean;
   attacking?: boolean;
+  charging?: boolean;
   direction: -1 | 1;
   defeated: boolean;
   diveTimer?: number;
@@ -50,6 +63,7 @@ type Penguin = Rect & {
   health: number;
   hitCooldown: number;
   isBoss?: boolean;
+  isDiver?: boolean;
   isMiner?: boolean;
   jumpCooldown?: number;
   maxX: number;
@@ -152,6 +166,7 @@ const FLIGHT_UPGRADE_AMOUNT = 1;
 const OXYGEN_UPGRADE_AMOUNT = 10;
 const SPEED_UPGRADE_AMOUNT = 18;
 const STAGE_COUNT = 1;
+const PLAYTEST_INVINCIBLE = true;
 
 const platforms: Platform[] = [
   { x: 0, y: 452, width: 500, height: 54, kind: "snow" },
@@ -494,6 +509,7 @@ const levelThreePenguins: Penguin[] = [
     alerted: false,
     health: LEVEL_THREE_PENGUIN_HEALTH,
     hitCooldown: 0,
+    isDiver: true,
     defeated: false,
   },
   {
@@ -508,6 +524,7 @@ const levelThreePenguins: Penguin[] = [
     alerted: false,
     health: LEVEL_THREE_PENGUIN_HEALTH,
     hitCooldown: 0,
+    isDiver: true,
     defeated: false,
   },
   {
@@ -522,6 +539,7 @@ const levelThreePenguins: Penguin[] = [
     alerted: false,
     health: LEVEL_THREE_PENGUIN_HEALTH,
     hitCooldown: 0,
+    isDiver: true,
     defeated: false,
   },
   {
@@ -536,6 +554,7 @@ const levelThreePenguins: Penguin[] = [
     alerted: false,
     health: LEVEL_THREE_PENGUIN_HEALTH,
     hitCooldown: 0,
+    isDiver: true,
     defeated: false,
   },
   {
@@ -745,8 +764,22 @@ const levelFourPenguins: Penguin[] = [
   },
 ];
 
-const LEVEL_FIVE_WATER_END_X = 2550;
+const LEVEL_FIVE_WATER_END_X = 2710;
 const LEVEL_FIVE_WATER_SURFACE_Y = 250;
+const LEVEL_FIVE_MINE_WALL_WIDTH = 78;
+const LEVEL_FIVE_MINE_LAVA_Y = 320;
+const LEVEL_FIVE_SUMMIT_LEFT_X = 8120;
+const LEVEL_FIVE_SUMMIT_RIGHT_X = 9520;
+const LEVEL_FIVE_BOSS_X = 9000;
+const LEVEL_FIVE_BOSS_HEALTH = 18;
+const LEVEL_FIVE_BOSS_AGGRO_RANGE = 1500;
+const LEVEL_FIVE_BOSS_CHARGE_COOLDOWN = 5.2;
+const LEVEL_FIVE_BOSS_CHARGE_GATE_PADDING = 170;
+const LEVEL_FIVE_BOSS_CHARGE_SPEED = 1160;
+const LEVEL_FIVE_BOSS_CHARGE_DURATION = 1.35;
+const STAGE_BOSS_EXPLOSION_FLASH_DURATION = 2;
+const STAGE_BOSS_EXPLOSION_BASE_FEATHERS = 50;
+const STAGE_BOSS_EXPLOSION_FEATHER_STAGE_BONUS = 25;
 
 const LEVEL_FIVE: LevelBounds = {
   width: 9600,
@@ -760,30 +793,49 @@ const levelFivePlatforms: Platform[] = [
   { x: 910, y: 168, width: 210, height: 38, kind: "ice" },
   { x: 1450, y: 194, width: 330, height: 42, kind: "ice" },
   { x: 1745, y: 222, width: 250, height: 36, kind: "snow" },
-  { x: 2300, y: 242, width: 470, height: 50, kind: "ice" },
-  { x: 2580, y: 470, width: 2860, height: 520, kind: "ice", slope: { startY: 480, endY: 256 } },
-  { x: 2860, y: 406, width: 250, height: 42, kind: "snow" },
-  { x: 3260, y: 348, width: 220, height: 42, kind: "ice" },
-  { x: 3640, y: 292, width: 230, height: 42, kind: "snow" },
-  { x: 4050, y: 350, width: 260, height: 42, kind: "ice" },
-  { x: 4520, y: 284, width: 240, height: 42, kind: "snow" },
-  { x: 4920, y: 404, width: 420, height: 52, kind: "ice" },
+  { x: 2300, y: 242, width: 390, height: 50, kind: "ice" },
+  {
+    x: LEVEL_FIVE_WATER_END_X,
+    y: LEVEL_FIVE_WATER_SURFACE_Y,
+    width: LEVEL_FIVE_MINE_WALL_WIDTH,
+    height: VIEW.height + LEVEL_FIVE.groundY - LEVEL_FIVE_WATER_SURFACE_Y,
+    kind: "ice",
+    fluidBarrier: true,
+    wall: true,
+  },
+  { x: 2820, y: -118, width: 420, height: 46, kind: "ice", ceiling: true },
+  { x: 3220, y: -164, width: 460, height: 48, kind: "ice", ceiling: true },
+  { x: 3650, y: -194, width: 520, height: 50, kind: "ice", ceiling: true },
+  { x: 4140, y: -176, width: 470, height: 48, kind: "ice", ceiling: true },
+  { x: 4560, y: -136, width: 500, height: 46, kind: "ice", ceiling: true },
+  { x: 2860, y: 196, width: 250, height: 42, kind: "snow" },
+  { x: 3260, y: 138, width: 220, height: 42, kind: "ice" },
+  { x: 3640, y: 82, width: 230, height: 42, kind: "snow" },
+  { x: 4050, y: 140, width: 260, height: 42, kind: "ice" },
+  { x: 4520, y: 74, width: 240, height: 42, kind: "snow" },
+  { x: 4920, y: 194, width: 420, height: 52, kind: "ice" },
   { x: 5480, y: 456, width: 2680, height: 1730, kind: "ice", slope: { startY: 470, endY: -1495 } },
   { x: 8120, y: -1495, width: 780, height: 58, kind: "snow" },
-  { x: 9100, y: -1508, width: 420, height: 58, kind: "ice" },
+  { x: 8900, y: -1495, width: 620, height: 58, kind: "ice" },
 ];
 
 const levelFiveFish: Fish[] = [
   { x: 820, y: 310, collected: false },
   { x: 1600, y: 316, collected: false },
-  { x: 3380, y: 302, collected: false },
-  { x: 4640, y: 238, collected: false },
+  { x: 3380, y: 92, collected: false },
+  { x: 4640, y: 28, collected: false },
   { x: 6260, y: -220, collected: false },
   { x: 7200, y: -900, collected: false },
 ];
 
 const levelFiveHazards: Hazard[] = [
-  { x: 2770, y: LEVEL_FIVE.groundY, width: 2710, height: 40, kind: "lava" },
+  {
+    x: LEVEL_FIVE_WATER_END_X + LEVEL_FIVE_MINE_WALL_WIDTH,
+    y: LEVEL_FIVE_MINE_LAVA_Y,
+    width: 2692,
+    height: VIEW.height + LEVEL_FIVE.groundY - LEVEL_FIVE_MINE_LAVA_Y,
+    kind: "lava",
+  },
 ];
 
 const levelFiveExitHole: Rect = {
@@ -806,6 +858,7 @@ const levelFivePenguins: Penguin[] = [
     alerted: false,
     health: LEVEL_THREE_PENGUIN_HEALTH,
     hitCooldown: 0,
+    isDiver: true,
     defeated: false,
   },
   {
@@ -820,6 +873,7 @@ const levelFivePenguins: Penguin[] = [
     alerted: false,
     health: LEVEL_THREE_PENGUIN_HEALTH,
     hitCooldown: 0,
+    isDiver: true,
     defeated: false,
   },
   {
@@ -834,6 +888,22 @@ const levelFivePenguins: Penguin[] = [
     alerted: false,
     health: LEVEL_THREE_PENGUIN_HEALTH,
     hitCooldown: 0,
+    isDiver: true,
+    defeated: false,
+  },
+  {
+    x: 2580,
+    y: 300,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 2410,
+    maxX: 2770,
+    speed: 118,
+    direction: 1,
+    alerted: false,
+    health: LEVEL_THREE_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    isDiver: true,
     defeated: false,
   },
   {
@@ -897,6 +967,21 @@ const levelFivePenguins: Penguin[] = [
     defeated: false,
   },
   {
+    x: 5020,
+    y: 236,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 4935,
+    maxX: 5340,
+    speed: 112,
+    direction: -1,
+    alerted: false,
+    health: NORMAL_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    isMiner: true,
+    defeated: false,
+  },
+  {
     x: 5850,
     y: 160,
     width: PENGUIN.width,
@@ -953,6 +1038,20 @@ const levelFivePenguins: Penguin[] = [
     defeated: false,
   },
   {
+    x: 7370,
+    y: -956,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 7120,
+    maxX: 7650,
+    speed: 116,
+    direction: -1,
+    alerted: false,
+    health: NORMAL_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    defeated: false,
+  },
+  {
     x: 7580,
     y: -1110,
     width: PENGUIN.width,
@@ -981,16 +1080,30 @@ const levelFivePenguins: Penguin[] = [
     defeated: false,
   },
   {
-    x: 8580,
+    x: 8790,
+    y: -1552,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 8140,
+    maxX: 9000,
+    speed: 116,
+    direction: -1,
+    alerted: false,
+    health: NORMAL_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    defeated: false,
+  },
+  {
+    x: LEVEL_FIVE_BOSS_X,
     y: -1559,
     width: 64,
     height: 76,
     minX: 8140,
     maxX: 9520,
-    speed: 96,
+    speed: 0,
     direction: -1,
     alerted: false,
-    health: 6,
+    health: LEVEL_FIVE_BOSS_HEALTH,
     hitCooldown: 0,
     isBoss: true,
     defeated: false,
@@ -1021,8 +1134,23 @@ export class PuffinGame {
   private bossStompKnockbackTimer = 0;
   private bossStompKnockbackX = 0;
   private bossStompAirLocked = false;
+  private stageBossChargeCooldown = LEVEL_FIVE_BOSS_CHARGE_COOLDOWN;
+  private stageBossChargeDirection: -1 | 1 = -1;
+  private stageBossChargeHitPenguins = new Set<Penguin>();
+  private stageBossChargeHitPuffin = false;
+  private stageBossChargeTimer = 0;
   private bossWaterSpitCooldown = 1.6;
-  private stageBossSummonCooldown = 2.4;
+  private bossDefeatExplosionDone = false;
+  private bossDefeatSequenceTimer = 0;
+  private bossDefeatPopupTimer = 0;
+  private bossDefeatFeathersAwarded = false;
+  private explosionFlashTimer = 0;
+  private stageBossSummonCooldown = 1.1;
+  private stageBossSummonQueue: number[] = [];
+  private levelFiveArenaClosed = false;
+  private levelFiveGateDustTimer = 0;
+  private levelFiveGateTimer = 0;
+  private stageComplete = false;
   private damageInvulnerability = 0;
   private exitOpeningTimer = 0;
   private exitWasLocked = true;
@@ -1077,6 +1205,7 @@ export class PuffinGame {
   private exitHole = exitHole;
   private splats: SplatEffect[] = [];
   private waterSpits: WaterSpit[] = [];
+  private flyingFeathers: FlyingFeather[] = [];
   private feathers: Feather[] = [];
   private fish: Fish[] = createFish(startingFish, false);
   private penguins: Penguin[] = createPenguinsOnSurfaces(startingPenguins, platforms, LEVEL);
@@ -1123,6 +1252,9 @@ export class PuffinGame {
   private readonly shopOverlay = document.querySelector<HTMLElement>("#shop-menu");
   private readonly speedUpgradeButton = document.querySelector<HTMLButtonElement>("#speed-upgrade");
   private readonly speedUpgradeCostLabel = document.querySelector<HTMLElement>("#speed-upgrade-cost");
+  private readonly stageCompleteMainMenuButton =
+    document.querySelector<HTMLButtonElement>("#stage-complete-main-menu");
+  private readonly stageCompleteOverlay = document.querySelector<HTMLElement>("#stage-complete-overlay");
   private readonly stageLabel = document.querySelector<HTMLElement>("#stage-label");
   private readonly stageNextButton = document.querySelector<HTMLButtonElement>("#stage-next");
   private readonly stagePreviousButton = document.querySelector<HTMLButtonElement>("#stage-previous");
@@ -1156,6 +1288,7 @@ export class PuffinGame {
     this.speedUpgradeButton?.addEventListener("click", this.handleSpeedUpgrade);
     this.stageNextButton?.addEventListener("click", this.handleStageNext);
     this.stagePreviousButton?.addEventListener("click", this.handleStagePrevious);
+    this.stageCompleteMainMenuButton?.addEventListener("click", this.handleMainMenu);
     this.mainMenuButton?.addEventListener("click", this.handleMainMenu);
     this.tryAgainButton?.addEventListener("click", this.handleTryAgain);
     this.updateShopDisplay();
@@ -1192,6 +1325,7 @@ export class PuffinGame {
     this.speedUpgradeButton?.removeEventListener("click", this.handleSpeedUpgrade);
     this.stageNextButton?.removeEventListener("click", this.handleStageNext);
     this.stagePreviousButton?.removeEventListener("click", this.handleStagePrevious);
+    this.stageCompleteMainMenuButton?.removeEventListener("click", this.handleMainMenu);
     this.mainMenuButton?.removeEventListener("click", this.handleMainMenu);
     this.tryAgainButton?.removeEventListener("click", this.handleTryAgain);
     window.removeEventListener("resize", this.resize);
@@ -1225,6 +1359,15 @@ export class PuffinGame {
       this.bossStompKnockbackX = 0;
     }
     this.damageInvulnerability = Math.max(0, this.damageInvulnerability - deltaSeconds);
+    this.explosionFlashTimer = Math.max(0, this.explosionFlashTimer - deltaSeconds);
+    this.levelFiveGateDustTimer = Math.max(0, this.levelFiveGateDustTimer - deltaSeconds);
+    if (this.levelFiveGateTimer > 0) {
+      const previousGateTimer = this.levelFiveGateTimer;
+      this.levelFiveGateTimer = Math.max(0, this.levelFiveGateTimer - deltaSeconds);
+      if (previousGateTimer > 0 && this.levelFiveGateTimer === 0) {
+        this.levelFiveGateDustTimer = 0.55;
+      }
+    }
     this.exitOpeningTimer = Math.max(0, this.exitOpeningTimer - deltaSeconds);
     this.discoveryToastTimer = Math.max(0, this.discoveryToastTimer - deltaSeconds);
     this.updateDiscoveryToast();
@@ -1245,27 +1388,44 @@ export class PuffinGame {
         : horizontal * moveSpeed + peckSlide;
 
     if (this.jumpQueued && this.grounded) {
-      this.velocity.y = -(this.isNearBoss() ? PUFFIN.bossJumpSpeed : PUFFIN.jumpSpeed);
-      this.flight = Math.max(0, this.flight - PUFFIN.jumpFlightCost);
+      const jumpSpeed = this.currentLevel === 5 && this.levelFiveArenaClosed
+        ? PUFFIN.bossJumpSpeed
+        : this.isNearBoss() ? PUFFIN.bossJumpSpeed : PUFFIN.jumpSpeed;
+      this.velocity.y = -jumpSpeed;
+      if (!PLAYTEST_INVINCIBLE) {
+        this.flight = Math.max(0, this.flight - PUFFIN.jumpFlightCost);
+      }
       this.grounded = false;
       this.flying = true;
     }
 
     this.jumpQueued = false;
     this.updateFlight(deltaSeconds);
+    if (PLAYTEST_INVINCIBLE) {
+      this.health = this.maxHealth;
+      this.oxygen = this.maxOxygen;
+      this.flight = this.maxFlight;
+    }
+    if (this.currentLevel === 5 && this.levelFiveArenaClosed) {
+      this.flight = this.maxFlight;
+    }
+    const previousX = this.puffin.x;
     this.puffin.x += this.velocity.x * deltaSeconds;
     this.puffin.x = clamp(this.puffin.x, 0, this.level.width - this.puffin.width);
+    this.resolveWallCollisions(previousX);
+    this.resolveLevelFiveArenaGates();
     this.checkPeckAttack();
 
     const previousY = this.puffin.y;
     this.puffin.y += this.velocity.y * deltaSeconds;
-    this.resolveCeilingCollision();
+    this.resolveCeilingCollision(previousY);
     this.checkPenguins(previousY);
     if (this.gameOver) {
       return;
     }
 
     this.resolveVerticalCollisions(previousY);
+    this.updateLevelFiveArenaGates();
     this.updateOxygen(deltaSeconds);
     if (this.gameOver) {
       return;
@@ -1273,10 +1433,14 @@ export class PuffinGame {
 
     this.updatePenguins(deltaSeconds);
     this.updateStageBossSummons(deltaSeconds);
+    this.updateBossDefeatSequence(deltaSeconds);
     this.updateWaterSpits(deltaSeconds);
     this.updateFish(deltaSeconds);
     this.updateSplats(deltaSeconds);
     this.updateFeathers(deltaSeconds);
+    if (this.explosionFlashTimer <= 0) {
+      this.updateFlyingFeathers(deltaSeconds);
+    }
     this.collectFish();
     this.collectFeathers();
     this.checkHazards();
@@ -1349,13 +1513,18 @@ export class PuffinGame {
       !this.grounded && this.keys.jump && this.flight > 0 && !this.bossStompAirLocked && this.bossStompKnockbackTimer <= 0;
 
     if (canFly) {
+      const bossArenaJump = this.currentLevel === 5 && this.levelFiveArenaClosed;
       const altitudeProgress = getAltitudeProgress(this.puffin, this.level);
-      const liftScale = 1 - altitudeProgress * (1 - PUFFIN.highAltitudeLiftScale);
+      const liftScale = bossArenaJump ? 1.08 : 1 - altitudeProgress * (1 - PUFFIN.highAltitudeLiftScale);
       const riseSpeedCap =
-        PUFFIN.minFlightRiseSpeed + (1 - altitudeProgress) * (PUFFIN.maxFlightRiseSpeed - PUFFIN.minFlightRiseSpeed);
+        bossArenaJump
+          ? 500
+          : PUFFIN.minFlightRiseSpeed + (1 - altitudeProgress) * (PUFFIN.maxFlightRiseSpeed - PUFFIN.minFlightRiseSpeed);
 
       this.flying = true;
-      this.flight = Math.max(0, this.flight - deltaSeconds * PUFFIN.flightDrainRate);
+      if (!PLAYTEST_INVINCIBLE && !bossArenaJump) {
+        this.flight = Math.max(0, this.flight - deltaSeconds * PUFFIN.flightDrainRate);
+      }
       this.velocity.y += PUFFIN.flightGravity * deltaSeconds;
       this.velocity.y -= (PUFFIN.flightLift * liftScale + (this.velocity.y > 0 ? PUFFIN.fallRecoveryLift : 0)) * deltaSeconds;
       this.velocity.y = Math.max(this.velocity.y, -riseSpeedCap);
@@ -1376,6 +1545,11 @@ export class PuffinGame {
       this.oxygen = Math.max(0, this.oxygen - PUFFIN.oxygenDrainRate * deltaSeconds);
 
       if (this.oxygen <= 0) {
+        if (PLAYTEST_INVINCIBLE) {
+          this.oxygen = this.maxOxygen;
+          return;
+        }
+
         this.dieAndShowRetry();
       }
 
@@ -1410,7 +1584,7 @@ export class PuffinGame {
       return true;
     }
 
-    return this.currentLevel === 5 && actor.x < LEVEL_FIVE_WATER_END_X;
+    return this.currentLevel === 5 && actor.x < LEVEL_FIVE_WATER_END_X - 18;
   }
 
   private updateDuckState(): void {
@@ -1442,15 +1616,41 @@ export class PuffinGame {
     return !this.platforms.some((platform) => rectanglesOverlap(standingBox, platform));
   }
 
-  private resolveCeilingCollision(): void {
-    if (this.puffin.y >= this.level.ceilingY) {
+  private resolveCeilingCollision(previousY: number): void {
+    for (const platform of this.platforms) {
+      if (platform.ceiling !== true || this.velocity.y >= 0 || !rectanglesOverlap(this.puffin, platform)) {
+        continue;
+      }
+
+      const previousHeadY = previousY;
+      const ceilingBottom = platform.y + platform.height;
+
+      if (previousHeadY >= ceilingBottom - 2) {
+        this.puffin.y = ceilingBottom;
+        this.velocity.y = 0;
+      }
+    }
+
+    if (this.currentLevel === 5 && this.levelFiveArenaClosed) {
+      const arenaCeilingY = levelFivePlatforms[19].y - 430;
+
+      if (this.puffin.y < arenaCeilingY) {
+        this.puffin.y = arenaCeilingY;
+
+        if (this.velocity.y < 0) {
+          this.velocity.y = 0;
+        }
+      }
+
       return;
     }
 
-    this.puffin.y = this.level.ceilingY;
+    if (this.puffin.y < this.level.ceilingY) {
+      this.puffin.y = this.level.ceilingY;
 
-    if (this.velocity.y < 0) {
-      this.velocity.y = 0;
+      if (this.velocity.y < 0) {
+        this.velocity.y = 0;
+      }
     }
   }
 
@@ -1459,6 +1659,10 @@ export class PuffinGame {
     this.grounded = false;
 
     for (const platform of this.platforms) {
+      if (platform.ceiling) {
+        continue;
+      }
+
       const previousFootY = previousY + this.puffin.height;
       const platformTop = getBestPlatformTopY(platform, this.puffin);
       const footY = this.puffin.y + this.puffin.height;
@@ -1470,6 +1674,12 @@ export class PuffinGame {
         platformTop !== null &&
         footY >= platformTop - 24 &&
         footY <= platformTop + 34;
+      const canSnapToFlat =
+        wasGrounded &&
+        platform.slope === undefined &&
+        platformTop !== null &&
+        footY >= platformTop - 24 &&
+        footY <= platformTop + 46;
       const isInsideFilledSlope =
         isLevelFourIceberg &&
         platformTop !== null &&
@@ -1478,7 +1688,7 @@ export class PuffinGame {
 
       if (
         this.velocity.y >= 0 &&
-        (wasAbove || canSnapToSlope || isInsideFilledSlope) &&
+        (wasAbove || canSnapToSlope || canSnapToFlat || isInsideFilledSlope) &&
         platformTop !== null &&
         footY >= platformTop - 24 &&
         this.puffin.x + this.puffin.width > platform.x &&
@@ -1520,6 +1730,62 @@ export class PuffinGame {
     this.resolveWaterLedgeClimb();
   }
 
+  private resolveWallCollisions(previousX: number): void {
+    for (const platform of this.platforms) {
+      if (platform.wall !== true || !rectanglesOverlap(this.puffin, platform)) {
+        continue;
+      }
+
+      if (previousX + this.puffin.width <= platform.x) {
+        this.puffin.x = platform.x - this.puffin.width;
+        this.velocity.x = Math.min(0, this.velocity.x);
+      } else if (previousX >= platform.x + platform.width) {
+        this.puffin.x = platform.x + platform.width;
+        this.velocity.x = Math.max(0, this.velocity.x);
+      }
+    }
+  }
+
+  private updateLevelFiveArenaGates(): void {
+    if (this.currentLevel !== 5 || this.levelFiveArenaClosed || this.stageComplete) {
+      return;
+    }
+
+    const summit = levelFivePlatforms[19];
+    const footY = this.puffin.y + this.puffin.height;
+    const onSummit =
+      this.puffin.x + this.puffin.width > summit.x &&
+      this.puffin.x < summit.x + summit.width &&
+      Math.abs(footY - summit.y) < 18;
+
+    if (onSummit) {
+      this.levelFiveArenaClosed = true;
+      this.levelFiveGateTimer = 0.72;
+      this.levelFiveGateDustTimer = 0;
+      const boss = this.getLivingBoss();
+      if (boss) {
+        boss.alerted = true;
+      }
+      this.resolveLevelFiveArenaGates();
+    }
+  }
+
+  private resolveLevelFiveArenaGates(): void {
+    if (this.currentLevel !== 5 || !this.levelFiveArenaClosed || this.stageComplete) {
+      return;
+    }
+
+    this.puffin.x = clamp(this.puffin.x, LEVEL_FIVE_SUMMIT_LEFT_X, LEVEL_FIVE_SUMMIT_RIGHT_X - this.puffin.width);
+  }
+
+  private resolveLevelFivePenguinArenaGates(penguin: Penguin): void {
+    if (this.currentLevel !== 5 || !this.levelFiveArenaClosed || this.stageComplete || penguin.isBoss) {
+      return;
+    }
+
+    penguin.x = clamp(penguin.x, LEVEL_FIVE_SUMMIT_LEFT_X, LEVEL_FIVE_SUMMIT_RIGHT_X - penguin.width);
+  }
+
   private resolveWaterLedgeClimb(): void {
     const wantsIcebergHop = this.icebergHopQueued;
     this.icebergHopQueued = false;
@@ -1538,6 +1804,10 @@ export class PuffinGame {
     const puffinCenterX = this.puffin.x + this.puffin.width / 2;
 
     for (const platform of this.platforms) {
+      if (platform.ceiling) {
+        continue;
+      }
+
       const platformTop = getBestPlatformTopY(platform, this.puffin);
       const closeToPlatformSide = puffinCenterX > platform.x - 28 && puffinCenterX < platform.x + platform.width + 28;
 
@@ -1687,6 +1957,48 @@ export class PuffinGame {
     }
   }
 
+  private updateFlyingFeathers(deltaSeconds: number): void {
+    if (this.flyingFeathers.length === 0) {
+      return;
+    }
+
+    const targetX = this.puffin.x + this.puffin.width / 2;
+    const targetY = this.puffin.y + this.puffin.height * 0.32;
+
+    for (const feather of this.flyingFeathers) {
+      feather.age += deltaSeconds;
+
+      if (feather.age < feather.delay) {
+        feather.y -= 18 * deltaSeconds;
+        feather.rotation += 1.8 * deltaSeconds;
+        continue;
+      }
+
+      const progress = clamp((feather.age - feather.delay) / feather.duration, 0, 1);
+      const eased = progress * progress * (3 - 2 * progress);
+      const arc = Math.sin(progress * Math.PI) * 46;
+      feather.x = feather.startX + (targetX - feather.startX) * eased;
+      feather.y = feather.startY + (targetY - feather.startY) * eased - arc;
+      feather.rotation += 3.2 * deltaSeconds;
+    }
+
+    const arriving: FlyingFeather[] = [];
+    this.flyingFeathers = this.flyingFeathers.filter((feather) => {
+      if (feather.age < feather.delay + feather.duration) {
+        return true;
+      }
+      arriving.push(feather);
+      return false;
+    });
+
+    if (arriving.length > 0) {
+      this.puffinFeathers += arriving.length;
+      this.levelStartFeathers = this.puffinFeathers;
+      this.updateShopDisplay();
+      this.spawnFeatherSplat(targetX, targetY);
+    }
+  }
+
   private isFeatherInLava(feather: Feather): boolean {
     const featherLeft = feather.x - 6;
     const featherRight = feather.x + 6;
@@ -1707,6 +2019,10 @@ export class PuffinGame {
     }
 
     for (const platform of this.platforms) {
+      if (platform.ceiling) {
+        continue;
+      }
+
       const platformTops = [feather.x - 9, feather.x, feather.x + 9]
         .map((x) => getPlatformTopY(platform, x))
         .filter((top): top is number => top !== null);
@@ -1775,7 +2091,7 @@ export class PuffinGame {
   }
 
   private updatePenguins(deltaSeconds: number): void {
-    let levelThreeAttackers = this.currentLevel === 3 ? this.countLevelThreeAttackers() : 0;
+    let levelThreeAttackers = this.hasWaterSection() ? this.countLevelThreeAttackers() : 0;
 
     for (const penguin of this.penguins) {
       if (penguin.defeated) {
@@ -1787,15 +2103,24 @@ export class PuffinGame {
       penguin.hitCooldown = Math.max(0, penguin.hitCooldown - deltaSeconds);
       penguin.pickaxeSwingTimer = Math.max(0, (penguin.pickaxeSwingTimer ?? 0) - deltaSeconds);
 
+      if (this.currentLevel === 5 && penguin.isBoss) {
+        this.updateStageBossCharge(penguin, deltaSeconds);
+        continue;
+      }
+
       const penguinCenter = penguin.x + penguin.width / 2;
       const puffinCenter = this.puffin.x + this.puffin.width / 2;
       const distanceX = puffinCenter - penguinCenter;
-      const levelThreeDiver = this.currentLevel === 3 && !penguin.isBoss;
+      const levelThreeDiver = this.isDiverPenguin(penguin);
       const penguinUnderwater = this.isUnderwaterPenguin(penguin);
-      const aggroRange = penguin.isBoss ? 560 : levelThreeDiver ? 680 : 250;
+      const aggroRange = penguin.isBoss
+        ? this.currentLevel === 5
+          ? LEVEL_FIVE_BOSS_AGGRO_RANGE
+          : 560
+        : levelThreeDiver ? 680 : 250;
       const patrolBuffer = penguin.isBoss ? 180 : 28;
       const puffinInPatrolRange = puffinCenter >= penguin.minX - patrolBuffer && puffinCenter <= penguin.maxX + patrolBuffer;
-      const wantsToAttack = Math.abs(distanceX) < aggroRange && (levelThreeDiver || puffinInPatrolRange);
+      const wantsToAttack = Math.abs(distanceX) < aggroRange && (levelThreeDiver || penguin.isBoss || puffinInPatrolRange);
 
       if (levelThreeDiver && penguin.waitingToDive === true) {
         penguin.diveTimer = Math.max(0, (penguin.diveTimer ?? getPenguinDiveDelay()) - deltaSeconds);
@@ -1852,10 +2177,16 @@ export class PuffinGame {
 
       const speed = penguinUnderwater && penguin.attacking === true ? penguin.speed * 1.35 : penguin.speed;
       const horizontalSpeed = chasingPuffin && Math.abs(distanceX) <= chaseDeadZone ? 0 : speed;
+      const previousX = penguin.x;
       penguin.x += penguin.direction * horizontalSpeed * deltaSeconds;
       penguin.x = clamp(penguin.x, 0, this.level.width - penguin.width);
+      if (this.currentLevel === 5 && penguin.isBoss) {
+        penguin.x = LEVEL_FIVE_BOSS_X;
+      }
+      this.resolveLevelFivePenguinArenaGates(penguin);
+      this.resolvePenguinWallCollisions(penguin, previousX);
 
-      const staysInArena = penguin.isBoss || !penguin.alerted;
+      const staysInArena = !penguin.alerted;
 
       if (staysInArena && penguin.x <= penguin.minX) {
         penguin.x = penguin.minX;
@@ -1879,7 +2210,14 @@ export class PuffinGame {
 
       const puffinIsAbove = this.puffin.y + this.puffin.height < penguin.y + penguin.height - 18;
 
-      if (penguin.alerted && !levelThreeDiver && penguin.grounded && penguin.jumpCooldown <= 0 && puffinIsAbove) {
+      if (
+        penguin.alerted &&
+        !levelThreeDiver &&
+        !(this.currentLevel === 5 && penguin.isBoss) &&
+        penguin.grounded &&
+        penguin.jumpCooldown <= 0 &&
+        puffinIsAbove
+      ) {
         penguin.velocityY = penguin.isBoss ? -430 : -500;
         penguin.grounded = false;
         penguin.jumpCooldown = penguin.isBoss ? 1.15 : 0.85;
@@ -1911,20 +2249,23 @@ export class PuffinGame {
       }
 
       penguin.y += penguin.velocityY * deltaSeconds;
+      this.resolvePenguinCeilingCollisions(penguin, previousY);
 
       if (penguinUnderwater && penguin.y + penguin.height > this.getWaterBottomY() - 36) {
         penguin.y = this.getWaterBottomY() - 36 - penguin.height;
         penguin.velocityY = -180;
       }
 
+      const waterSurfaceY = this.getWaterSurfaceY();
       if (
-        this.currentLevel === 3 &&
+        this.hasWaterSection() &&
+        this.isInWaterSection(penguin) &&
         !penguin.isBoss &&
         (penguin.velocityY ?? 0) > 0 &&
-        previousY + penguin.height <= this.level.groundY &&
-        penguin.y + penguin.height > this.level.groundY
+        previousY + penguin.height <= waterSurfaceY &&
+        penguin.y + penguin.height > waterSurfaceY
       ) {
-        this.spawnSplash(penguin.x + penguin.width / 2, this.level.groundY);
+        this.spawnSplash(penguin.x + penguin.width / 2, waterSurfaceY);
       }
 
       this.resolvePenguinVerticalCollision(penguin, previousY);
@@ -1938,45 +2279,208 @@ export class PuffinGame {
       return;
     }
 
-    const boss = this.penguins.find((penguin) => penguin.isBoss && !penguin.defeated);
+    const boss = this.getLivingBoss();
+    const bossCenterX = boss ? boss.x + boss.width / 2 : 0;
+    const puffinCenterX = this.puffin.x + this.puffin.width / 2;
+    const bossIsInAggro =
+      boss !== undefined && boss.alerted && Math.abs(puffinCenterX - bossCenterX) < LEVEL_FIVE_BOSS_AGGRO_RANGE;
 
-    if (!boss || !boss.alerted) {
-      this.stageBossSummonCooldown = Math.max(0.8, this.stageBossSummonCooldown - deltaSeconds * 0.35);
+    if (!bossIsInAggro) {
+      this.stageBossSummonCooldown = Math.min(this.stageBossSummonCooldown, 1.1);
+      this.stageBossSummonQueue = [];
       return;
     }
 
     this.stageBossSummonCooldown = Math.max(0, this.stageBossSummonCooldown - deltaSeconds);
+    this.updateStageBossSummonQueue(boss, deltaSeconds);
 
-    const livingPeakMinions = this.penguins.filter(
-      (penguin) => !penguin.isBoss && !penguin.defeated && penguin.x > 8000,
-    ).length;
-
-    if (this.stageBossSummonCooldown > 0 || livingPeakMinions >= 3) {
+    if (this.stageBossSummonQueue.length > 0 || this.stageBossSummonCooldown > 0) {
       return;
     }
 
-    const spawnX = clamp(boss.x + (Math.random() < 0.5 ? -1 : 1) * (150 + Math.random() * 170), 8160, 9440);
+    this.stageBossSummonQueue = [0, 0.24, 0.48];
+    this.stageBossSummonCooldown = 3;
+    this.updateStageBossSummonQueue(boss, 0);
+  }
+
+  private updateStageBossCharge(boss: Penguin, deltaSeconds: number): void {
+    if (!this.levelFiveArenaClosed || this.stageComplete || this.bossDefeatSequenceTimer > 0 || !boss.alerted) {
+      boss.charging = false;
+      this.stageBossChargeTimer = 0;
+      this.stageBossChargeHitPenguins.clear();
+      this.stageBossChargeHitPuffin = false;
+      this.stageBossChargeCooldown = Math.min(this.stageBossChargeCooldown, LEVEL_FIVE_BOSS_CHARGE_COOLDOWN);
+      return;
+    }
+
+    const bossCenterX = boss.x + boss.width / 2;
+    const puffinCenterX = this.puffin.x + this.puffin.width / 2;
+
+    if (boss.charging === true) {
+      const previousX = boss.x;
+      const targetX = this.getStageBossChargeTargetX(boss);
+      const nextX = boss.x + this.stageBossChargeDirection * LEVEL_FIVE_BOSS_CHARGE_SPEED * deltaSeconds;
+
+      boss.x = this.stageBossChargeDirection > 0 ? Math.min(nextX, targetX) : Math.max(nextX, targetX);
+      boss.x = clamp(boss.x, LEVEL_FIVE_SUMMIT_LEFT_X, LEVEL_FIVE_SUMMIT_RIGHT_X - boss.width);
+      boss.direction = this.stageBossChargeDirection;
+      this.damageStageBossChargeTargets(boss, previousX);
+      this.stageBossChargeTimer = Math.max(0, this.stageBossChargeTimer - deltaSeconds);
+
+      if (
+        this.stageBossChargeTimer <= 0 ||
+        Math.abs(boss.x - targetX) < 1
+      ) {
+        boss.x = targetX;
+        boss.charging = false;
+        this.stageBossChargeCooldown = LEVEL_FIVE_BOSS_CHARGE_COOLDOWN;
+        this.stageBossChargeHitPenguins.clear();
+        this.stageBossChargeHitPuffin = false;
+      }
+
+      return;
+    }
+
+    this.stageBossChargeCooldown = Math.max(0, this.stageBossChargeCooldown - deltaSeconds);
+
+    if (this.stageBossChargeCooldown <= 0 && this.grounded && Math.abs(puffinCenterX - bossCenterX) > 90) {
+      this.stageBossChargeDirection = puffinCenterX < bossCenterX ? -1 : 1;
+      const targetX = this.getStageBossChargeTargetX(boss);
+
+      if (Math.abs(targetX - boss.x) < 24) {
+        return;
+      }
+
+      boss.direction = this.stageBossChargeDirection;
+      boss.charging = true;
+      this.stageBossChargeTimer = LEVEL_FIVE_BOSS_CHARGE_DURATION;
+      this.stageBossChargeHitPenguins.clear();
+      this.stageBossChargeHitPuffin = false;
+    }
+  }
+
+  private getStageBossChargeTargetX(boss: Penguin): number {
+    return this.stageBossChargeDirection > 0 ? this.getStageBossRightSpotX(boss) : this.getStageBossLeftSpotX(boss);
+  }
+
+  private getStageBossLeftSpotX(boss: Penguin): number {
+    return clamp(
+      LEVEL_FIVE_SUMMIT_LEFT_X + LEVEL_FIVE_BOSS_CHARGE_GATE_PADDING,
+      LEVEL_FIVE_SUMMIT_LEFT_X,
+      LEVEL_FIVE_SUMMIT_RIGHT_X - boss.width,
+    );
+  }
+
+  private getStageBossRightSpotX(boss: Penguin): number {
+    return clamp(
+      LEVEL_FIVE_SUMMIT_RIGHT_X - boss.width - LEVEL_FIVE_BOSS_CHARGE_GATE_PADDING,
+      LEVEL_FIVE_SUMMIT_LEFT_X,
+      LEVEL_FIVE_SUMMIT_RIGHT_X - boss.width,
+    );
+  }
+
+  private damageStageBossChargeTargets(boss: Penguin, previousX: number): void {
+    const sweptLeft = Math.min(previousX, boss.x);
+    const sweptRight = Math.max(previousX + boss.width, boss.x + boss.width);
+    const chargeBox: Rect = {
+      x: sweptLeft - 18,
+      y: boss.y - 8,
+      width: sweptRight - sweptLeft + 36,
+      height: boss.height + 18,
+    };
+
+    if (!this.stageBossChargeHitPuffin && rectanglesOverlap(this.puffin, chargeBox)) {
+      this.stageBossChargeHitPuffin = true;
+      this.damagePuffin(this.puffin.x + this.puffin.width / 2 < boss.x + boss.width / 2 ? -1 : 1, 1);
+    }
+
+    for (const penguin of this.penguins) {
+      if (penguin.isBoss || penguin.defeated || this.stageBossChargeHitPenguins.has(penguin)) {
+        continue;
+      }
+
+      if (rectanglesOverlap(penguin, chargeBox)) {
+        this.stageBossChargeHitPenguins.add(penguin);
+        this.damagePenguinFromBossCharge(penguin);
+      }
+    }
+  }
+
+  private damagePenguinFromBossCharge(penguin: Penguin): void {
+    penguin.health -= 1;
+    penguin.alerted = true;
+    penguin.hitCooldown = 0.2;
+    penguin.x = clamp(penguin.x + this.stageBossChargeDirection * 34, 0, this.level.width - penguin.width);
+    penguin.velocityY = -220;
+    penguin.grounded = false;
+
+    if (penguin.health <= 0) {
+      penguin.defeated = true;
+      penguin.attacking = false;
+      this.penguinsDefeated += 1;
+      this.spawnSplat(penguin.x + penguin.width / 2, penguin.y + penguin.height);
+      return;
+    }
+
+    this.spawnPenguinHit(penguin.x + penguin.width / 2, penguin.y + penguin.height * 0.42);
+  }
+
+  private updateStageBossSummonQueue(boss: Penguin, deltaSeconds: number): void {
+    const readySummons: number[] = [];
+
+    this.stageBossSummonQueue = this.stageBossSummonQueue
+      .map((timer) => timer - deltaSeconds)
+      .filter((timer) => {
+        if (timer <= 0) {
+          readySummons.push(timer);
+          return false;
+        }
+
+        return true;
+      });
+
+    for (const _timer of readySummons) {
+      this.spawnStageBossSummon(boss);
+    }
+  }
+
+  private spawnStageBossSummon(boss: Penguin): void {
+    const spawnX = clamp(boss.x + boss.width / 2 - PENGUIN.width / 2, LEVEL_FIVE_SUMMIT_LEFT_X, LEVEL_FIVE_SUMMIT_RIGHT_X);
+    const summonRoll = Math.random();
+    const summonKind: "basic" | "miner" | "diver" =
+      summonRoll < 1 / 3 ? "basic" : summonRoll < 2 / 3 ? "miner" : "diver";
+    const isMinerSummon = summonKind === "miner";
+    const isDiverSummon = summonKind === "diver";
     const penguin: Penguin = {
       x: spawnX,
       y: boss.y - 40,
       width: PENGUIN.width,
       height: PENGUIN.height,
-      minX: 8120,
-      maxX: 9520,
-      speed: 116,
+      minX: LEVEL_FIVE_SUMMIT_LEFT_X,
+      maxX: LEVEL_FIVE_SUMMIT_RIGHT_X,
+      speed: isMinerSummon ? 104 : isDiverSummon ? 122 : 116,
       direction: spawnX < this.puffin.x ? 1 : -1,
-      alerted: true,
-      health: NORMAL_PENGUIN_HEALTH,
+      alerted: !isDiverSummon,
+      health: isDiverSummon ? LEVEL_THREE_PENGUIN_HEALTH : NORMAL_PENGUIN_HEALTH,
       hitCooldown: 0,
+      isDiver: isDiverSummon,
+      isMiner: isMinerSummon,
       defeated: false,
       velocityY: 0,
     };
     const surfaceY = getPenguinSurfaceY(penguin, this.platforms, this.level);
 
-    penguin.y = surfaceY - penguin.height;
-    penguin.grounded = true;
+    if (isDiverSummon) {
+      penguin.y = LEVEL_FIVE_WATER_SURFACE_Y - 210;
+      penguin.grounded = false;
+      penguin.hasDived = false;
+      penguin.waitingToDive = true;
+      penguin.diveTimer = getPenguinDiveDelay();
+    } else {
+      penguin.y = surfaceY - penguin.height;
+      penguin.grounded = true;
+    }
     this.penguins.push(penguin);
-    this.stageBossSummonCooldown = 4.2;
   }
 
   private updateWaterSpits(deltaSeconds: number): void {
@@ -2092,6 +2596,10 @@ export class PuffinGame {
     const probeX = penguin.direction > 0 ? penguin.x + penguin.width + 20 : penguin.x - 20;
     const footY = penguin.y + penguin.height + 8;
     const standingPlatform = this.platforms.some((platform) => {
+      if (platform.ceiling || platform.fluidBarrier) {
+        return false;
+      }
+
       const topY = getPlatformTopY(platform, probeX);
       const platformTolerance = platform.slope ? (penguin.isBoss ? 96 : 68) : 44;
       return topY !== null && Math.abs(topY - footY) < platformTolerance;
@@ -2130,7 +2638,7 @@ export class PuffinGame {
     const penguinCenter = penguin.x + penguin.width / 2;
     const footY = penguin.y + penguin.height;
 
-    return penguinCenter > hazard.x + 6 && penguinCenter < hazard.x + hazard.width - 6 && footY > this.level.groundY + 20;
+    return penguinCenter > hazard.x + 6 && penguinCenter < hazard.x + hazard.width - 6 && footY > hazard.y + 20;
   }
 
   private isPenguinInLava(penguin: Penguin, hazard: Hazard): boolean {
@@ -2152,6 +2660,10 @@ export class PuffinGame {
     penguin.grounded = false;
 
     for (const platform of this.platforms) {
+      if (platform.ceiling || platform.fluidBarrier) {
+        continue;
+      }
+
       const previousFootY = previousY + penguin.height;
       const platformTop = getPenguinPlatformTopY(platform, penguin);
       const footY = penguin.y + penguin.height;
@@ -2163,11 +2675,17 @@ export class PuffinGame {
         platformTop !== null &&
         footY >= platformTop - slopeSnapUp &&
         footY <= platformTop + slopeSnapDown;
+      const canSnapToFlat =
+        wasGrounded &&
+        platform.slope === undefined &&
+        platformTop !== null &&
+        footY >= platformTop - slopeSnapUp &&
+        footY <= platformTop + slopeSnapDown + 12;
 
       if (
         (penguin.velocityY ?? 0) >= 0 &&
         platformTop !== null &&
-        (previousFootY <= platformTop || canSnapToSlope) &&
+        (previousFootY <= platformTop || canSnapToSlope || canSnapToFlat) &&
         footY >= platformTop - slopeSnapUp &&
         penguin.x + penguin.width > platform.x &&
         penguin.x < platform.x + platform.width
@@ -2191,6 +2709,41 @@ export class PuffinGame {
     }
   }
 
+  private resolvePenguinCeilingCollisions(penguin: Penguin, previousY: number): void {
+    if ((penguin.velocityY ?? 0) >= 0) {
+      return;
+    }
+
+    for (const platform of this.platforms) {
+      if (platform.ceiling !== true || !rectanglesOverlap(penguin, platform)) {
+        continue;
+      }
+
+      const ceilingBottom = platform.y + platform.height;
+
+      if (previousY >= ceilingBottom - 2) {
+        penguin.y = ceilingBottom;
+        penguin.velocityY = 0;
+      }
+    }
+  }
+
+  private resolvePenguinWallCollisions(penguin: Penguin, previousX: number): void {
+    for (const platform of this.platforms) {
+      if (platform.wall !== true || !rectanglesOverlap(penguin, platform)) {
+        continue;
+      }
+
+      if (previousX + penguin.width <= platform.x) {
+        penguin.x = platform.x - penguin.width;
+        penguin.direction = -1;
+      } else if (previousX >= platform.x + platform.width) {
+        penguin.x = platform.x + platform.width;
+        penguin.direction = 1;
+      }
+    }
+  }
+
   private resolvePenguinWaterLedgeClimb(penguin: Penguin): void {
     if (!this.hasWaterSection() || !this.isInWaterSection(penguin) || penguin.isBoss || penguin.grounded) {
       return;
@@ -2204,6 +2757,10 @@ export class PuffinGame {
     }
 
     for (const platform of this.platforms) {
+      if (platform.ceiling || platform.fluidBarrier) {
+        continue;
+      }
+
       const platformTop = getBestPlatformTopY(platform, penguin);
       const closeToPlatformSide =
         penguinCenterX > platform.x - 36 && penguinCenterX < platform.x + platform.width + 36;
@@ -2242,7 +2799,11 @@ export class PuffinGame {
   }
 
   private countLevelThreeAttackers(): number {
-    return this.penguins.filter((penguin) => !penguin.defeated && !penguin.isBoss && penguin.attacking === true).length;
+    return this.penguins.filter((penguin) => !penguin.defeated && this.isDiverPenguin(penguin) && penguin.attacking === true).length;
+  }
+
+  private getLivingBoss(): Penguin | undefined {
+    return this.penguins.find((penguin) => penguin.isBoss === true && !penguin.defeated);
   }
 
   private isNearBoss(): boolean {
@@ -2262,8 +2823,17 @@ export class PuffinGame {
   }
 
   private checkHazards(): void {
+    if (PLAYTEST_INVINCIBLE) {
+      return;
+    }
+
     for (const hazard of this.hazards) {
       if (hazard.kind === "crevasse" && this.isInsideCrevasse(hazard)) {
+        this.dieAndShowRetry();
+        return;
+      }
+
+      if (hazard.kind === "lava" && this.isPuffinInLava(hazard)) {
         this.dieAndShowRetry();
         return;
       }
@@ -2271,12 +2841,14 @@ export class PuffinGame {
       if (this.damageInvulnerability > 0) {
         continue;
       }
-
-      if (hazard.kind === "lava" && rectanglesOverlap(this.puffin, hazard)) {
-        this.dieAndShowRetry();
-        return;
-      }
     }
+  }
+
+  private isPuffinInLava(hazard: Hazard): boolean {
+    const puffinCenter = this.puffin.x + this.puffin.width / 2;
+    const footY = this.puffin.y + this.puffin.height;
+
+    return puffinCenter > hazard.x && puffinCenter < hazard.x + hazard.width && footY >= hazard.y;
   }
 
   private isInsideCrevasse(hazard: Hazard): boolean {
@@ -2417,6 +2989,10 @@ export class PuffinGame {
     const corridorBottom = Math.max(topActor.y + topActor.height, bottomActor.y);
 
     return this.platforms.some((platform) => {
+      if (platform.ceiling || platform.fluidBarrier) {
+        return false;
+      }
+
       const sampleX = (corridorLeft + corridorRight) / 2;
       const platformTop = platform.slope ? getPlatformTopY(platform, sampleX) : platform.y;
 
@@ -2436,6 +3012,13 @@ export class PuffinGame {
   }
 
   private damagePuffin(knockbackDirection: -1 | 1, amount = 1): void {
+    if (PLAYTEST_INVINCIBLE) {
+      this.health = this.maxHealth;
+      this.damageInvulnerability = PUFFIN.damageInvulnerability;
+      this.penguinContactGrace = PUFFIN.damageInvulnerability;
+      return;
+    }
+
     if (this.damageInvulnerability > 0) {
       return;
     }
@@ -2459,6 +3042,13 @@ export class PuffinGame {
   }
 
   private dieAndShowRetry(): void {
+    if (PLAYTEST_INVINCIBLE) {
+      this.health = this.maxHealth;
+      this.oxygen = this.maxOxygen;
+      this.flight = this.maxFlight;
+      return;
+    }
+
     this.health = 0;
     this.velocity.x = 0;
     this.velocity.y = 0;
@@ -2469,7 +3059,136 @@ export class PuffinGame {
     this.tryAgainButton?.focus();
   }
 
+  private showStageComplete(): void {
+    this.completedLevels.add(5);
+    this.updateLevelsDisplay();
+    this.stageComplete = true;
+    this.win = true;
+    this.menuOpen = true;
+    this.hideDiscoveryToast();
+    this.stageCompleteOverlay?.removeAttribute("hidden");
+    this.stageCompleteMainMenuButton?.focus();
+  }
+
+  private startBossDefeatSequence(): void {
+    if (this.bossDefeatSequenceTimer > 0 || this.stageComplete) {
+      return;
+    }
+
+    this.bossDefeatSequenceTimer = 3.4;
+    this.bossDefeatPopupTimer = 1.4;
+    this.bossDefeatExplosionDone = false;
+    this.bossDefeatFeathersAwarded = false;
+    this.stageBossSummonCooldown = 999;
+    this.stageBossSummonQueue = [];
+    const boss = this.getLivingBoss();
+    if (boss) {
+      boss.charging = false;
+    }
+    this.stageBossChargeCooldown = LEVEL_FIVE_BOSS_CHARGE_COOLDOWN;
+    this.stageBossChargeHitPenguins.clear();
+    this.stageBossChargeHitPuffin = false;
+    this.stageBossChargeTimer = 0;
+    this.waterSpits = [];
+  }
+
+  private updateBossDefeatSequence(deltaSeconds: number): void {
+    if (this.bossDefeatSequenceTimer <= 0 && !this.bossDefeatExplosionDone) {
+      return;
+    }
+
+    if (this.bossDefeatSequenceTimer > 0) {
+      this.bossDefeatSequenceTimer = Math.max(0, this.bossDefeatSequenceTimer - deltaSeconds);
+    }
+
+    if (!this.bossDefeatExplosionDone && this.bossDefeatSequenceTimer <= this.bossDefeatPopupTimer) {
+      this.explodeStageBoss();
+      this.bossDefeatExplosionDone = true;
+      this.explosionFlashTimer = STAGE_BOSS_EXPLOSION_FLASH_DURATION;
+    }
+
+    if (this.bossDefeatExplosionDone && !this.bossDefeatFeathersAwarded && this.flyingFeathers.length === 0) {
+      this.bossDefeatFeathersAwarded = true;
+      this.bossDefeatSequenceTimer = Math.min(this.bossDefeatSequenceTimer, 0.35);
+    }
+
+    if (
+      this.bossDefeatExplosionDone &&
+      this.bossDefeatFeathersAwarded &&
+      this.bossDefeatSequenceTimer <= 0 &&
+      this.explosionFlashTimer <= 0
+    ) {
+      this.showStageComplete();
+    }
+  }
+
+  private explodeStageBoss(): void {
+    const looseFeathers = this.feathers.filter((feather) => !feather.collected);
+    let remainingExplosionFeathers = this.getStageBossExplosionFeatherCap();
+
+    for (const penguin of this.penguins) {
+      if (penguin.defeated) {
+        continue;
+      }
+
+      const featherAmount = penguin.isBoss ? 5 : getFeatherDropAmount();
+      penguin.defeated = true;
+      penguin.attacking = false;
+      penguin.alerted = false;
+      this.penguinsDefeated += 1;
+      this.penguinKillCount += 1;
+      this.spawnSplat(penguin.x + penguin.width / 2, penguin.y + penguin.height);
+      this.spawnFeatherSplat(penguin.x + penguin.width / 2, penguin.y + 8);
+      remainingExplosionFeathers = this.spawnCappedFlyingFeathers(
+        penguin.x + penguin.width / 2,
+        penguin.y + 8,
+        featherAmount,
+        remainingExplosionFeathers,
+      );
+    }
+
+    for (const feather of looseFeathers) {
+      remainingExplosionFeathers = this.spawnCappedFlyingFeathers(feather.x, feather.y, 1, remainingExplosionFeathers);
+    }
+
+    this.feathers = [];
+  }
+
+  private getStageBossExplosionFeatherCap(): number {
+    return STAGE_BOSS_EXPLOSION_BASE_FEATHERS + (this.currentStage - 1) * STAGE_BOSS_EXPLOSION_FEATHER_STAGE_BONUS;
+  }
+
+  private spawnCappedFlyingFeathers(x: number, y: number, amount: number, remainingAmount: number): number {
+    if (remainingAmount <= 0) {
+      return 0;
+    }
+
+    const spawnedAmount = Math.min(amount, remainingAmount);
+    this.spawnFlyingFeathers(x, y, spawnedAmount);
+    return remainingAmount - spawnedAmount;
+  }
+
+  private spawnFlyingFeathers(x: number, y: number, amount: number): void {
+    for (let index = 0; index < amount; index += 1) {
+      const offset = (index - (amount - 1) / 2) * 14;
+      this.flyingFeathers.push({
+        x: x + offset,
+        y: y - Math.abs(offset) * 0.3,
+        age: 0,
+        delay: index * 0.08,
+        duration: 1.45 + Math.min(0.4, amount * 0.025),
+        startX: x + offset,
+        startY: y - Math.abs(offset) * 0.3,
+        rotation: (Math.random() - 0.5) * 0.8,
+      });
+    }
+  }
+
   private damagePenguin(penguin: Penguin, source: "peck" | "stomp"): boolean {
+    if (this.bossDefeatSequenceTimer > 0 && this.currentLevel === 5 && penguin.isBoss) {
+      return false;
+    }
+
     if (penguin.hitCooldown > 0) {
       return false;
     }
@@ -2487,7 +3206,13 @@ export class PuffinGame {
     penguin.alerted = true;
     penguin.hitCooldown = penguin.isBoss ? 0.75 : 0.12;
 
-    if (penguin.health <= 0) {
+    if (penguin.health <= 0 && this.currentLevel === 5 && penguin.isBoss) {
+      penguin.health = 0;
+      penguin.alerted = false;
+      penguin.attacking = false;
+      penguin.hitCooldown = 999;
+      this.startBossDefeatSequence();
+    } else if (penguin.health <= 0) {
       penguin.defeated = true;
       penguin.attacking = false;
       this.penguinsDefeated += 1;
@@ -2508,6 +3233,10 @@ export class PuffinGame {
 
   private isLevelTwoMiner(penguin: Penguin): boolean {
     return (this.currentLevel === 2 || this.currentLevel === 5) && penguin.isMiner === true;
+  }
+
+  private isDiverPenguin(penguin: Penguin): boolean {
+    return !penguin.isBoss && (this.currentLevel === 3 || penguin.isDiver === true);
   }
 
   private hasPickaxe(penguin: Penguin): boolean {
@@ -2563,8 +3292,18 @@ export class PuffinGame {
     this.bossStompKnockbackTimer = 0;
     this.bossStompKnockbackX = 0;
     this.bossStompAirLocked = false;
+    this.stageBossChargeCooldown = LEVEL_FIVE_BOSS_CHARGE_COOLDOWN;
+    this.stageBossChargeDirection = -1;
+    this.stageBossChargeHitPenguins.clear();
+    this.stageBossChargeHitPuffin = false;
+    this.stageBossChargeTimer = 0;
     this.bossWaterSpitCooldown = 1.6;
-    this.stageBossSummonCooldown = 2.4;
+    this.bossDefeatSequenceTimer = 0;
+    this.bossDefeatPopupTimer = 0;
+    this.bossDefeatExplosionDone = false;
+    this.bossDefeatFeathersAwarded = false;
+    this.stageBossSummonCooldown = 1.1;
+    this.stageBossSummonQueue = [];
     this.damageInvulnerability = 0;
   }
 
@@ -2573,9 +3312,12 @@ export class PuffinGame {
     this.menuOpen = false;
     this.hideDiscoveryToast();
     this.deathOverlay?.setAttribute("hidden", "");
+    this.stageCompleteOverlay?.setAttribute("hidden", "");
     this.levelsOverlay?.setAttribute("hidden", "");
     this.mainMenuOverlay?.setAttribute("hidden", "");
     this.shopOverlay?.setAttribute("hidden", "");
+    this.levelFiveArenaClosed = false;
+    this.stageComplete = false;
 
     if (this.currentLevel === 1) {
       this.level = { ...LEVEL };
@@ -2611,7 +3353,7 @@ export class PuffinGame {
       this.hazards = levelFiveHazards;
       this.exitHole = levelFiveExitHole;
       this.fish = createLevelFiveFish();
-      this.penguins = createPenguinsOnSurfaces(levelFivePenguins, levelFivePlatforms, LEVEL_FIVE);
+      this.penguins = createLevelFivePenguins();
     }
 
     this.resetExitOpeningState();
@@ -2620,6 +3362,7 @@ export class PuffinGame {
     this.penguinsDefeated = 0;
     this.splats = [];
     this.waterSpits = [];
+    this.flyingFeathers = [];
     this.feathers = [];
     this.win = false;
     this.penguinKillCount = this.levelStartPenguinKillCount;
@@ -2651,8 +3394,10 @@ export class PuffinGame {
   private showMainMenu(): void {
     this.menuOpen = true;
     this.gameOver = false;
+    this.stageComplete = false;
     this.hideDiscoveryToast();
     this.deathOverlay?.setAttribute("hidden", "");
+    this.stageCompleteOverlay?.setAttribute("hidden", "");
     this.journalOverlay?.setAttribute("hidden", "");
     this.levelsOverlay?.setAttribute("hidden", "");
     this.shopOverlay?.setAttribute("hidden", "");
@@ -2666,6 +3411,7 @@ export class PuffinGame {
     this.gameOver = false;
     this.hideDiscoveryToast();
     this.deathOverlay?.setAttribute("hidden", "");
+    this.stageCompleteOverlay?.setAttribute("hidden", "");
     this.journalOverlay?.setAttribute("hidden", "");
     this.levelsOverlay?.setAttribute("hidden", "");
     this.mainMenuOverlay?.setAttribute("hidden", "");
@@ -2679,6 +3425,7 @@ export class PuffinGame {
     this.gameOver = false;
     this.hideDiscoveryToast();
     this.deathOverlay?.setAttribute("hidden", "");
+    this.stageCompleteOverlay?.setAttribute("hidden", "");
     this.levelsOverlay?.setAttribute("hidden", "");
     this.mainMenuOverlay?.setAttribute("hidden", "");
     this.shopOverlay?.setAttribute("hidden", "");
@@ -2783,7 +3530,7 @@ export class PuffinGame {
       return "miner";
     }
 
-    if (this.currentLevel === 3 && !penguin.isBoss) {
+    if (this.isDiverPenguin(penguin)) {
       return "diver";
     }
 
@@ -2795,6 +3542,7 @@ export class PuffinGame {
     this.gameOver = false;
     this.hideDiscoveryToast();
     this.deathOverlay?.setAttribute("hidden", "");
+    this.stageCompleteOverlay?.setAttribute("hidden", "");
     this.journalOverlay?.setAttribute("hidden", "");
     this.mainMenuOverlay?.setAttribute("hidden", "");
     this.shopOverlay?.setAttribute("hidden", "");
@@ -2973,6 +3721,7 @@ export class PuffinGame {
     this.penguinsDefeated = 0;
     this.splats = [];
     this.waterSpits = [];
+    this.flyingFeathers = [];
     this.feathers = [];
     this.win = false;
     this.health = this.maxHealth;
@@ -3006,6 +3755,7 @@ export class PuffinGame {
     this.penguinsDefeated = 0;
     this.splats = [];
     this.waterSpits = [];
+    this.flyingFeathers = [];
     this.feathers = [];
     this.win = false;
     this.health = this.maxHealth;
@@ -3034,6 +3784,7 @@ export class PuffinGame {
     this.penguinsDefeated = 0;
     this.splats = [];
     this.waterSpits = [];
+    this.flyingFeathers = [];
     this.feathers = [];
     this.win = false;
     this.health = this.maxHealth;
@@ -3046,9 +3797,12 @@ export class PuffinGame {
     this.gameOver = false;
     this.menuOpen = false;
     this.deathOverlay?.setAttribute("hidden", "");
+    this.stageCompleteOverlay?.setAttribute("hidden", "");
     this.levelsOverlay?.setAttribute("hidden", "");
     this.mainMenuOverlay?.setAttribute("hidden", "");
     this.shopOverlay?.setAttribute("hidden", "");
+    this.levelFiveArenaClosed = false;
+    this.stageComplete = false;
     this.levelStartFeathers = this.puffinFeathers;
     this.levelStartPenguinKillCount = this.penguinKillCount;
     this.level = { ...LEVEL_FIVE };
@@ -3056,12 +3810,13 @@ export class PuffinGame {
     this.hazards = levelFiveHazards;
     this.exitHole = levelFiveExitHole;
     this.fish = createLevelFiveFish();
-    this.penguins = createPenguinsOnSurfaces(levelFivePenguins, levelFivePlatforms, LEVEL_FIVE);
+    this.penguins = createLevelFivePenguins();
     this.resetExitOpeningState();
     this.score = 0;
     this.penguinsDefeated = 0;
     this.splats = [];
     this.waterSpits = [];
+    this.flyingFeathers = [];
     this.feathers = [];
     this.win = false;
     this.health = this.maxHealth;
@@ -3076,7 +3831,7 @@ export class PuffinGame {
   private isFilledSlopePlatform(platform: Platform): boolean {
     return (
       (this.currentLevel === 4 && platform === levelFourPlatforms[1]) ||
-      (this.currentLevel === 5 && (platform === levelFivePlatforms[6] || platform === levelFivePlatforms[13]))
+      (this.currentLevel === 5 && platform === levelFivePlatforms[18])
     );
   }
 
@@ -3096,6 +3851,10 @@ export class PuffinGame {
   }
 
   private isEnteringExitHole(): boolean {
+    if (this.currentLevel === 5) {
+      return false;
+    }
+
     if (this.isBossAlive()) {
       return false;
     }
@@ -3288,6 +4047,7 @@ export class PuffinGame {
     this.drawHud();
     this.drawLevelTitleCard();
     this.drawDamageEdges();
+    this.drawExplosionFlash();
   }
 
   private drawSky(): void {
@@ -3453,10 +4213,13 @@ export class PuffinGame {
     this.drawDistantIce();
     this.drawLevelFiveWater();
     this.drawLevelFiveMineMountain();
+    this.drawMountainSummitFill();
 
     for (const platform of this.platforms) {
       this.drawPlatform(platform);
     }
+
+    this.drawLevelFiveArenaGates();
 
     for (const hazard of this.hazards) {
       this.drawHazard(hazard);
@@ -3472,6 +4235,10 @@ export class PuffinGame {
       if (!feather.collected) {
         this.drawFeather(feather);
       }
+    }
+
+    for (const feather of this.flyingFeathers) {
+      this.drawFlyingFeather(feather);
     }
 
     for (const penguin of this.penguins) {
@@ -3518,6 +4285,59 @@ export class PuffinGame {
     }
   }
 
+  private drawLevelFiveArenaGates(): void {
+    if (this.currentLevel !== 5 || !this.levelFiveArenaClosed || this.stageComplete) {
+      return;
+    }
+
+    const summit = levelFivePlatforms[19];
+    const gateTop = summit.y - 620;
+    const gateHeight = 620 + summit.height + 120;
+    const gateWidth = 30;
+    const fallProgress = this.levelFiveGateTimer > 0 ? 1 - this.levelFiveGateTimer / 0.72 : 1;
+    const easedFall = 1 - Math.pow(1 - fallProgress, 3);
+    const dropOffset = (1 - easedFall) * -760;
+
+    this.drawSummitGate(LEVEL_FIVE_SUMMIT_LEFT_X - gateWidth, gateTop + dropOffset, gateWidth, gateHeight);
+    this.drawSummitGate(LEVEL_FIVE_SUMMIT_RIGHT_X, gateTop + dropOffset, gateWidth, gateHeight);
+
+    if (this.levelFiveGateDustTimer > 0) {
+      const dustAlpha = clamp(this.levelFiveGateDustTimer / 0.55, 0, 1);
+      this.context.fillStyle = `rgba(247, 251, 255, ${0.42 * dustAlpha})`;
+      this.context.fillRect(LEVEL_FIVE_SUMMIT_LEFT_X - 54, summit.y + summit.height - 8, 92, 10);
+      this.context.fillRect(LEVEL_FIVE_SUMMIT_RIGHT_X - 8, summit.y + summit.height - 8, 92, 10);
+      this.context.fillRect(LEVEL_FIVE_SUMMIT_LEFT_X - 76, summit.y + summit.height + 8, 46, 6);
+      this.context.fillRect(LEVEL_FIVE_SUMMIT_RIGHT_X + 44, summit.y + summit.height + 8, 46, 6);
+    }
+  }
+
+  private drawSummitGate(x: number, y: number, width: number, height: number): void {
+    this.context.fillStyle = "#6f8790";
+    this.context.fillRect(x, y, width, height);
+
+    this.context.fillStyle = "#d8f3f7";
+    this.context.fillRect(x + 5, y + 6, width - 10, height - 12);
+
+    this.context.strokeStyle = "#405660";
+    this.context.lineWidth = 3;
+    for (let lineY = y + 18; lineY < y + height - 10; lineY += 24) {
+      this.context.beginPath();
+      this.context.moveTo(x + 6, lineY);
+      this.context.lineTo(x + width - 6, lineY - 8);
+      this.context.stroke();
+    }
+  }
+
+  private drawExplosionFlash(): void {
+    if (this.explosionFlashTimer <= 0) {
+      return;
+    }
+
+    const alpha = this.explosionFlashTimer > 0.55 ? 1 : clamp(this.explosionFlashTimer / 0.55, 0, 1);
+    this.context.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+    this.context.fillRect(0, 0, VIEW.width, VIEW.height);
+  }
+
   private drawLevelFiveWater(): void {
     if (this.currentLevel !== 5) {
       return;
@@ -3545,63 +4365,77 @@ export class PuffinGame {
       return;
     }
 
-    this.context.fillStyle = "#d8f3f7";
+    const mountainBaseY = LEVEL_FIVE_MINE_LAVA_Y + 210;
+    const mountainGradient = this.context.createLinearGradient(0, -250, 0, mountainBaseY);
+    mountainGradient.addColorStop(0, "#effcff");
+    mountainGradient.addColorStop(0.45, "#a9dce8");
+    mountainGradient.addColorStop(1, "#3f798f");
+
+    this.context.fillStyle = mountainGradient;
     this.context.beginPath();
-    this.context.moveTo(2685, this.level.groundY - 6);
-    this.context.lineTo(2860, 310);
-    this.context.lineTo(3180, 210);
-    this.context.lineTo(4100, 178);
-    this.context.lineTo(4820, 230);
-    this.context.lineTo(5260, this.level.groundY - 6);
+    this.context.moveTo(2500, mountainBaseY);
+    this.context.lineTo(2840, 34);
+    this.context.lineTo(3560, -250);
+    this.context.lineTo(4480, -182);
+    this.context.lineTo(5425, 30);
+    this.context.lineTo(5600, mountainBaseY);
+    this.context.closePath();
+    this.context.fill();
+
+    this.context.fillStyle = "rgba(255, 255, 255, 0.28)";
+    this.context.beginPath();
+    this.context.moveTo(2870, 46);
+    this.context.lineTo(3560, -238);
+    this.context.lineTo(4200, -192);
+    this.context.lineTo(3375, 102);
+    this.context.closePath();
+    this.context.fill();
+
+    this.context.fillStyle = "rgba(46, 109, 132, 0.22)";
+    this.context.beginPath();
+    this.context.moveTo(4620, -166);
+    this.context.lineTo(5425, 30);
+    this.context.lineTo(5560, mountainBaseY);
+    this.context.lineTo(5060, mountainBaseY);
     this.context.closePath();
     this.context.fill();
 
     this.context.fillStyle = "#0d1419";
     this.context.beginPath();
-    this.context.moveTo(2715, this.level.groundY - 12);
-    this.context.lineTo(2940, 346);
-    this.context.lineTo(4650, 318);
-    this.context.lineTo(5350, this.level.groundY - 12);
+    this.context.moveTo(2715, LEVEL_FIVE_MINE_LAVA_Y + 44);
+    this.context.lineTo(2940, 136);
+    this.context.lineTo(4650, 108);
+    this.context.lineTo(5350, LEVEL_FIVE_MINE_LAVA_Y + 44);
     this.context.closePath();
     this.context.fill();
 
     this.context.fillStyle = "#72a9b6";
     this.context.beginPath();
-    this.context.arc(2705, 418, 74, Math.PI * 0.5, Math.PI * 1.5);
-    this.context.lineTo(2705, 492);
+    this.context.arc(2705, 208, 74, Math.PI * 0.5, Math.PI * 1.5);
+    this.context.lineTo(2705, 282);
     this.context.closePath();
     this.context.fill();
 
     this.context.fillStyle = "#0d1419";
     this.context.beginPath();
-    this.context.arc(2720, 420, 54, Math.PI * 0.5, Math.PI * 1.5);
-    this.context.lineTo(2720, 474);
+    this.context.arc(2720, 210, 54, Math.PI * 0.5, Math.PI * 1.5);
+    this.context.lineTo(2720, 264);
     this.context.closePath();
     this.context.fill();
 
     this.context.fillStyle = "rgba(135, 205, 218, 0.14)";
     for (let x = 2920; x < 5160; x += 330) {
-      this.context.fillRect(x, 170 + ((x / 330) % 3) * 32, 160, 10);
-      this.context.fillRect(x + 55, 198 + ((x / 330) % 3) * 32, 90, 7);
+      this.context.fillRect(x, 16 + ((x / 330) % 3) * 24, 160, 10);
+      this.context.fillRect(x + 55, 42 + ((x / 330) % 3) * 24, 90, 7);
     }
 
-    this.context.fillStyle = "#bde5ee";
-    for (let x = 3000; x < 5150; x += 260) {
-      this.context.beginPath();
-      this.context.moveTo(x, 206);
-      this.context.lineTo(x + 42, 270 + ((x / 260) % 3) * 18);
-      this.context.lineTo(x + 84, 206);
-      this.context.closePath();
-      this.context.fill();
-    }
-
-    this.context.strokeStyle = "#92d2df";
+    this.context.strokeStyle = "rgba(146, 210, 223, 0.65)";
     this.context.lineWidth = 10;
     this.context.beginPath();
-    this.context.moveTo(2680, 214);
-    this.context.lineTo(3400, -34);
-    this.context.lineTo(4270, 12);
-    this.context.lineTo(5060, 210);
+    this.context.moveTo(2840, 34);
+    this.context.lineTo(3560, -250);
+    this.context.lineTo(4480, -182);
+    this.context.lineTo(5425, 30);
     this.context.stroke();
   }
 
@@ -3641,9 +4475,52 @@ export class PuffinGame {
     this.context.fill();
   }
 
+  private drawMountainSummitFill(): void {
+    if (this.currentLevel !== 4 && this.currentLevel !== 5) {
+      return;
+    }
+
+    const slope = this.currentLevel === 4 ? levelFourPlatforms[1] : levelFivePlatforms[18];
+    const summit = this.currentLevel === 4 ? levelFourPlatforms[2] : levelFivePlatforms[19];
+
+    if (!slope.slope) {
+      return;
+    }
+
+    const baseY = this.level.groundY + 180;
+    const fillStartX = this.currentLevel === 5 ? LEVEL_FIVE_SUMMIT_LEFT_X : summit.x;
+    const fillEndX = this.currentLevel === 5 ? LEVEL_FIVE_SUMMIT_RIGHT_X : summit.x + summit.width;
+    const slopeJoinX = slope.x + slope.width;
+    const slopeJoinY = slope.slope.endY;
+
+    this.context.fillStyle = "#f7fbff";
+    this.context.beginPath();
+    this.context.moveTo(fillStartX, summit.y + summit.height);
+    this.context.lineTo(fillStartX, summit.y);
+    this.context.lineTo(fillEndX, summit.y);
+    this.context.lineTo(fillEndX + 360, baseY);
+    this.context.lineTo(fillStartX - 120, baseY);
+    this.context.closePath();
+    this.context.fill();
+
+    this.context.fillStyle = "rgba(255, 255, 255, 0.32)";
+    this.context.beginPath();
+    this.context.moveTo(slopeJoinX - 80, slopeJoinY + 40);
+    this.context.lineTo(fillEndX - 90, summit.y + 18);
+    this.context.lineTo(fillEndX + 80, baseY);
+    this.context.lineTo(fillStartX + 40, baseY);
+    this.context.closePath();
+    this.context.fill();
+  }
+
   private drawPlatform(platform: Platform): void {
     if (platform.slope) {
       this.drawSlopedPlatform(platform);
+      return;
+    }
+
+    if (platform.wall) {
+      this.drawIceWall(platform);
       return;
     }
 
@@ -3660,6 +4537,27 @@ export class PuffinGame {
     this.context.strokeRect(platform.x + 10, platform.y + 8, platform.width - 20, platform.height - 16);
   }
 
+  private drawIceWall(platform: Platform): void {
+    this.context.fillStyle = "#d8f3f7";
+    this.context.fillRect(platform.x, platform.y, platform.width, platform.height);
+
+    this.context.fillStyle = "#f7fbff";
+    this.context.fillRect(platform.x, platform.y, platform.width, 18);
+
+    this.context.fillStyle = "#92d2df";
+    this.context.fillRect(platform.x + 8, platform.y, 8, platform.height);
+    this.context.fillRect(platform.x + platform.width - 16, platform.y, 8, platform.height);
+
+    this.context.strokeStyle = "rgba(14, 62, 78, 0.22)";
+    this.context.lineWidth = 2;
+    for (let y = platform.y + 38; y < platform.y + platform.height; y += 64) {
+      this.context.beginPath();
+      this.context.moveTo(platform.x + 12, y);
+      this.context.lineTo(platform.x + platform.width - 12, y - 12);
+      this.context.stroke();
+    }
+  }
+
   private drawSlopedPlatform(platform: Platform): void {
     if (!platform.slope) {
       return;
@@ -3672,9 +4570,8 @@ export class PuffinGame {
     const bottomEndY = endY + visibleHeight;
 
     if (isLevelFourIceberg) {
-      const isLevelFiveMineMountain = this.currentLevel === 5 && platform === levelFivePlatforms[6];
       const baseY = this.level.groundY + 180;
-      this.context.fillStyle = isLevelFiveMineMountain ? "#11191f" : "#f7fbff";
+      this.context.fillStyle = "#f7fbff";
       this.context.beginPath();
       this.context.moveTo(platform.x - 180, baseY);
       this.context.lineTo(platform.x, startY);
@@ -3683,7 +4580,7 @@ export class PuffinGame {
       this.context.closePath();
       this.context.fill();
 
-      this.context.fillStyle = isLevelFiveMineMountain ? "#11191f" : "#f7fbff";
+      this.context.fillStyle = "#f7fbff";
       this.context.beginPath();
       this.context.moveTo(platform.x, startY);
       this.context.lineTo(platform.x + platform.width, endY);
@@ -3692,7 +4589,7 @@ export class PuffinGame {
       this.context.closePath();
       this.context.fill();
 
-      this.context.strokeStyle = isLevelFiveMineMountain ? "#405660" : "#bde5ee";
+      this.context.strokeStyle = "#bde5ee";
       this.context.lineWidth = 8;
       this.context.beginPath();
       this.context.moveTo(platform.x + 12, startY + 5);
@@ -3747,22 +4644,25 @@ export class PuffinGame {
     this.context.roundRect(hazard.x, this.level.groundY - 2, hazard.width, hazard.height + 42, 6);
     this.context.fill();
 
-    this.context.fillStyle = this.currentLevel === 2 ? "#31464f" : "#d8f3f7";
-    this.context.fillRect(hazard.x - 5, this.level.groundY, 5, 10);
-    this.context.fillRect(hazard.x + hazard.width, this.level.groundY, 5, 10);
+    if (this.currentLevel !== 5) {
+      this.context.fillStyle = this.currentLevel === 2 ? "#31464f" : "#d8f3f7";
+      this.context.fillRect(hazard.x - 5, this.level.groundY, 5, 10);
+      this.context.fillRect(hazard.x + hazard.width, this.level.groundY, 5, 10);
+    }
 
     this.context.fillStyle = "rgba(140, 214, 229, 0.34)";
     this.context.fillRect(hazard.x + 8, this.level.groundY + 10, hazard.width - 16, 4);
   }
 
   private drawLava(hazard: Rect): void {
+    const lavaY = hazard.y;
     const flowOffset = (this.previousTime / 28) % 22;
     const glow = this.context.createRadialGradient(
       hazard.x + hazard.width / 2,
-      this.level.groundY + hazard.height / 2,
+      lavaY + hazard.height / 2,
       4,
       hazard.x + hazard.width / 2,
-      this.level.groundY + hazard.height / 2,
+      lavaY + hazard.height / 2,
       hazard.width,
     );
     glow.addColorStop(0, "rgba(255, 210, 64, 0.8)");
@@ -3770,29 +4670,31 @@ export class PuffinGame {
     glow.addColorStop(1, "rgba(122, 20, 16, 0)");
 
     this.context.fillStyle = glow;
-    this.context.fillRect(hazard.x - 28, this.level.groundY - 18, hazard.width + 56, hazard.height + 58);
+    this.context.fillRect(hazard.x - 28, lavaY - 18, hazard.width + 56, hazard.height + 58);
 
-    const lava = this.context.createLinearGradient(0, this.level.groundY, 0, this.level.groundY + hazard.height);
+    const lava = this.context.createLinearGradient(0, lavaY, 0, lavaY + hazard.height);
     lava.addColorStop(0, "#ffd447");
     lava.addColorStop(0.45, "#ff6a2a");
     lava.addColorStop(1, "#9e1d18");
 
     this.context.fillStyle = lava;
     this.context.beginPath();
-    this.context.roundRect(hazard.x, this.level.groundY - 2, hazard.width, hazard.height + 42, 6);
+    this.context.roundRect(hazard.x, lavaY - 2, hazard.width, hazard.height + 42, 6);
     this.context.fill();
 
-    this.context.fillStyle = this.currentLevel === 2 ? "#31464f" : "#d8f3f7";
-    this.context.fillRect(hazard.x - 5, this.level.groundY, 5, 10);
-    this.context.fillRect(hazard.x + hazard.width, this.level.groundY, 5, 10);
+    if (this.currentLevel !== 5) {
+      this.context.fillStyle = this.currentLevel === 2 ? "#31464f" : "#d8f3f7";
+      this.context.fillRect(hazard.x - 5, lavaY, 5, 10);
+      this.context.fillRect(hazard.x + hazard.width, lavaY, 5, 10);
+    }
 
     this.context.strokeStyle = "#5e130f";
     this.context.lineWidth = 3;
-    this.context.strokeRect(hazard.x + 4, this.level.groundY + 5, hazard.width - 8, hazard.height + 12);
+    this.context.strokeRect(hazard.x + 4, lavaY + 5, hazard.width - 8, hazard.height + 12);
 
     this.context.fillStyle = "rgba(255, 245, 124, 0.86)";
     for (let x = hazard.x - 14 + flowOffset; x < hazard.x + hazard.width - 8; x += 22) {
-      const y = this.level.groundY + 10 + Math.sin((x + this.previousTime / 12) / 13) * 4;
+      const y = lavaY + 10 + Math.sin((x + this.previousTime / 12) / 13) * 4;
       const streakX = clamp(x, hazard.x + 7, hazard.x + hazard.width - 22);
       this.context.fillRect(streakX, y, 14, 4);
       this.context.fillRect(streakX, y + 9, 10, 3);
@@ -3853,6 +4755,35 @@ export class PuffinGame {
       this.context.lineTo(y < 0 ? -3 : 3, y + 3);
       this.context.stroke();
     }
+
+    this.context.restore();
+  }
+
+  private drawFlyingFeather(feather: FlyingFeather): void {
+    if (feather.age < feather.delay) {
+      return;
+    }
+
+    this.context.save();
+    this.context.translate(feather.x, feather.y);
+    this.context.rotate(feather.rotation);
+
+    this.context.fillStyle = "rgba(255, 255, 255, 0.34)";
+    this.context.beginPath();
+    this.context.ellipse(0, 0, 8, 16, 0.18, 0, Math.PI * 2);
+    this.context.fill();
+
+    this.context.fillStyle = "#f7fbff";
+    this.context.beginPath();
+    this.context.ellipse(0, 0, 4, 11, 0.18, 0, Math.PI * 2);
+    this.context.fill();
+
+    this.context.strokeStyle = "#7fa8b7";
+    this.context.lineWidth = 1.4;
+    this.context.beginPath();
+    this.context.moveTo(0, -9);
+    this.context.lineTo(0, 10);
+    this.context.stroke();
 
     this.context.restore();
   }
@@ -3977,17 +4908,51 @@ export class PuffinGame {
     this.context.scale(penguin.direction, 1);
     this.context.scale(penguin.isBoss ? 0.98 : 0.78, penguin.isBoss ? 0.98 : 0.78);
 
+    const bossShining = this.currentLevel === 5 && penguin.isBoss && this.bossDefeatSequenceTimer > this.bossDefeatPopupTimer;
+
     this.context.fillStyle = "rgba(0, 0, 0, 0.18)";
     this.context.fillRect(-24, -1, 48, 8);
 
-    this.context.fillStyle = "#ffb24a";
+    if (!bossShining && penguin.isBoss && penguin.charging === true) {
+      this.context.fillStyle = "rgba(255, 244, 142, 0.72)";
+      this.context.fillRect(-86, -42, 64, 7);
+      this.context.fillRect(-98, -29, 76, 6);
+      this.context.fillRect(-72, -14, 50, 5);
+    }
+
+    this.context.fillStyle = bossShining ? "#ffffff" : "#ffb24a";
     this.context.fillRect(8, -4, 18, 6);
     this.context.fillRect(-13, -4, 18, 6);
 
-    this.context.fillStyle = "#20242b";
+    this.context.fillStyle = bossShining ? "#ffffff" : "#20242b";
     this.context.fillRect(-24, -48, 48, 48);
 
-    if (this.currentLevel === 3 && !penguin.isBoss && penguin.attacking === true && !this.isUnderwaterPenguin(penguin)) {
+    if (bossShining) {
+      const pulse = 0.65 + Math.sin(this.bossDefeatSequenceTimer * 12) * 0.22;
+
+      this.context.fillStyle = `rgba(255, 255, 255, ${0.28 + pulse * 0.22})`;
+      this.context.beginPath();
+      this.context.arc(0, -28, 50 + pulse * 10, 0, Math.PI * 2);
+      this.context.fill();
+
+      this.context.strokeStyle = `rgba(255, 255, 255, ${0.7 + pulse * 0.2})`;
+      this.context.lineWidth = 5;
+      for (let index = 0; index < 12; index += 1) {
+        const angle = (Math.PI * 2 * index) / 12 + this.bossDefeatSequenceTimer * 0.45;
+        const inner = 42 + pulse * 5;
+        const outer = 96 + pulse * 22;
+
+        this.context.beginPath();
+        this.context.moveTo(Math.cos(angle) * inner, -28 + Math.sin(angle) * inner);
+        this.context.lineTo(Math.cos(angle) * outer, -28 + Math.sin(angle) * outer);
+        this.context.stroke();
+      }
+
+      this.context.fillStyle = `rgba(255, 255, 255, ${0.38 + pulse * 0.24})`;
+      this.context.fillRect(-31, -57, 62, 62);
+    }
+
+    if (!bossShining && this.isDiverPenguin(penguin) && penguin.attacking === true && !this.isUnderwaterPenguin(penguin)) {
       this.context.fillStyle = "#2d3540";
       this.context.fillRect(-36, -39, 12, 24);
     }
@@ -3997,13 +4962,13 @@ export class PuffinGame {
     this.context.ellipse(4, -27, 14, 17, 0, 0, Math.PI * 2);
     this.context.fill();
 
-    this.context.fillStyle = "#ff9f32";
+    this.context.fillStyle = bossShining ? "#ffffff" : "#ff9f32";
     this.context.fillRect(16, -33, 10, 7);
 
-    this.context.fillStyle = "#11151a";
+    this.context.fillStyle = bossShining ? "#ffffff" : "#11151a";
     this.context.fillRect(7, -36, 5, 5);
 
-    if (penguin.alerted) {
+    if (!bossShining && penguin.alerted) {
       this.context.fillStyle = "#f04b3e";
       this.context.fillRect(7, -36, 5, 5);
     }
@@ -4096,6 +5061,10 @@ export class PuffinGame {
   }
 
   private drawExitHole(): void {
+    if (this.currentLevel === 5) {
+      return;
+    }
+
     const locked = this.isBossAlive();
     const openProgress = locked ? 0 : this.exitOpeningTimer > 0 ? 1 - this.exitOpeningTimer / 0.85 : 1;
 
@@ -4254,7 +5223,9 @@ export class PuffinGame {
   }
 
   private drawHud(): void {
-    if (this.win) {
+    this.drawBossHealthBar();
+
+    if (this.win && !this.stageComplete) {
       this.context.fillStyle = "rgba(247, 251, 255, 0.94)";
       this.context.fillRect(302, 196, 356, 104);
 
@@ -4262,6 +5233,44 @@ export class PuffinGame {
       this.context.font = "800 28px system-ui, sans-serif";
       this.context.fillText("Tunnel cleared!", 384, 246);
     }
+  }
+
+  private drawBossHealthBar(): void {
+    if (this.currentLevel !== 5 || this.menuOpen || this.stageComplete) {
+      return;
+    }
+
+    const boss = this.getLivingBoss();
+
+    if (!boss || !this.levelFiveArenaClosed) {
+      return;
+    }
+
+    const barWidth = 420;
+    const barHeight = 18;
+    const x = VIEW.width / 2 - barWidth / 2;
+    const y = 22;
+    const healthPercent = clamp(boss.health / LEVEL_FIVE_BOSS_HEALTH, 0, 1);
+
+    this.context.fillStyle = "rgba(8, 24, 32, 0.86)";
+    this.context.fillRect(x - 12, y - 18, barWidth + 24, 48);
+
+    this.context.fillStyle = "#f7fbff";
+    this.context.font = "900 14px system-ui, sans-serif";
+    this.context.textAlign = "center";
+    this.context.fillText("Stage boss", VIEW.width / 2, y - 4);
+
+    this.context.fillStyle = "rgba(255, 255, 255, 0.22)";
+    this.context.fillRect(x, y, barWidth, barHeight);
+
+    this.context.fillStyle = healthPercent > 0.45 ? "#ffbf4f" : "#ff6b5f";
+    this.context.fillRect(x, y, barWidth * healthPercent, barHeight);
+
+    this.context.strokeStyle = "rgba(255, 255, 255, 0.82)";
+    this.context.lineWidth = 2;
+    this.context.strokeRect(x, y, barWidth, barHeight);
+
+    this.context.textAlign = "start";
   }
 
   private updateExternalHud(): void {
@@ -4629,6 +5638,24 @@ function createLevelThreePenguins(): Penguin[] {
   });
 }
 
+function createLevelFivePenguins(): Penguin[] {
+  return createPenguinsOnSurfaces(levelFivePenguins, levelFivePlatforms, LEVEL_FIVE).map((penguin) => {
+    if (penguin.isDiver !== true) {
+      return penguin;
+    }
+
+    return {
+      ...penguin,
+      y: LEVEL_FIVE_WATER_SURFACE_Y - 210,
+      velocityY: 0,
+      grounded: false,
+      hasDived: false,
+      waitingToDive: true,
+      diveTimer: getPenguinDiveDelay(),
+    };
+  });
+}
+
 function createFish(sourceFish: Fish[], swimming: boolean): Fish[] {
   return sourceFish.map((fish, index) => ({
     ...fish,
@@ -4657,6 +5684,7 @@ function createLevelFiveFish(): Fish[] {
 
 function getPenguinSurfaceY(penguin: Rect, levelPlatforms: Platform[], level: LevelBounds): number {
   const platformTops = levelPlatforms
+    .filter((platform) => !platform.ceiling && !platform.fluidBarrier)
     .map((platform) => getBestPlatformTopY(platform, penguin))
     .filter((top): top is number => top !== null);
 

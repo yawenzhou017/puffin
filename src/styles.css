@@ -238,6 +238,10 @@ body {
   display: none;
 }
 
+.stage-complete-overlay {
+  background: rgba(5, 13, 18, 0.48);
+}
+
 .main-menu {
   position: absolute;
   inset: 4px;
