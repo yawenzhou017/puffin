@@ -216,6 +216,11 @@
         </div>
       </div>
     </main>
-    <script type="module" src="./dist/main.js"></script>
+    <script type="module">
+      const buildVersion = Date.now().toString();
+
+      globalThis.__PUFFIN_BUILD_VERSION__ = buildVersion;
+      await import(`./dist/main.js?v=${buildVersion}`);
+    </script>
   </body>
 </html>

@@ -166,7 +166,7 @@ const FLIGHT_UPGRADE_AMOUNT = 1;
 const OXYGEN_UPGRADE_AMOUNT = 10;
 const SPEED_UPGRADE_AMOUNT = 18;
 const STAGE_COUNT = 1;
-const PLAYTEST_INVINCIBLE = true;
+const PLAYTEST_INVINCIBLE = false;
 
 const platforms: Platform[] = [
   { x: 0, y: 452, width: 500, height: 54, kind: "snow" },
