@@ -27,6 +27,7 @@
         </div>
         <div class="play-area">
           <canvas id="game" aria-label="Puffin game canvas"></canvas>
+          <button id="pause-button" class="pause-button" type="button" hidden>Pause</button>
           <div id="discovery-toast" class="discovery-toast" hidden>
             <strong>New Discovery</strong>
             <div class="discovery-row">
@@ -39,6 +40,7 @@
               <h1 id="menu-title">Puffin Platformer</h1>
               <div class="dialog-actions">
                 <button id="play-game" type="button">Play</button>
+                <button id="endless-zone-button" type="button">Endless zone</button>
                 <button id="shop-button" type="button">Shop</button>
                 <button id="journal-button" type="button">Journal</button>
               </div>
@@ -60,6 +62,10 @@
                 <button class="journal-card" type="button" data-penguin="diver" aria-label="Open Diver penguin journal entry">
                   <canvas class="journal-penguin-picture" data-journal-penguin="diver" width="96" height="96" aria-hidden="true"></canvas>
                   <span>Diver penguin</span>
+                </button>
+                <button class="journal-card" type="button" data-penguin="lumberjack" aria-label="Open Lumberjack penguin journal entry">
+                  <canvas class="journal-penguin-picture" data-journal-penguin="lumberjack" width="96" height="96" aria-hidden="true"></canvas>
+                  <span>Lumberjack penguin</span>
                 </button>
               </div>
               <div id="journal-detail" class="journal-detail" hidden>
@@ -99,6 +105,19 @@
                       <div><dt>Health</dt><dd>1</dd></div>
                       <div><dt>Attack</dt><dd>1 damage</dd></div>
                       <div><dt>Behavior</dt><dd>Dives from above, then swims after you</dd></div>
+                    </dl>
+                  </div>
+                </article>
+                <article class="journal-detail-entry" data-penguin-detail="lumberjack" hidden>
+                  <div class="journal-detail-picture">
+                    <canvas class="journal-penguin-picture large" data-journal-penguin="lumberjack" width="220" height="220" aria-hidden="true"></canvas>
+                  </div>
+                  <div class="journal-detail-stats">
+                    <h2>Lumberjack penguin</h2>
+                    <dl>
+                      <div><dt>Health</dt><dd>2</dd></div>
+                      <div><dt>Axe</dt><dd>2 damage</dd></div>
+                      <div><dt>Reload</dt><dd>Slow between swings</dd></div>
                     </dl>
                   </div>
                 </article>
@@ -196,6 +215,15 @@
               <div class="dialog-actions">
                 <button id="try-again" type="button">Try again</button>
                 <button id="main-menu-button" type="button">Main menu</button>
+              </div>
+            </div>
+          </div>
+          <div id="pause-overlay" class="death-overlay" hidden>
+            <div class="death-dialog" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+              <h1 id="pause-title">Paused</h1>
+              <div class="dialog-actions">
+                <button id="resume-game" type="button">Resume</button>
+                <button id="pause-main-menu" type="button">Main menu</button>
               </div>
             </div>
           </div>

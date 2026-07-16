@@ -50,6 +50,33 @@ body {
   background: #408ea5;
 }
 
+.pause-button {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 7;
+  padding: 10px 14px;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  border-radius: 6px;
+  color: #12303d;
+  background: #ffbf4f;
+  box-shadow: 0 6px 0 rgba(8, 18, 24, 0.22);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.pause-button[hidden] {
+  display: none;
+}
+
+.pause-button:hover,
+.pause-button:focus-visible {
+  background: #ffd36f;
+}
+
 .game-hud {
   display: grid;
   gap: 10px;
@@ -228,6 +255,7 @@ body {
 .death-overlay {
   position: absolute;
   inset: 4px;
+  z-index: 9;
   display: grid;
   place-items: center;
   border-radius: 4px;
