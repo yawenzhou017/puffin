@@ -181,6 +181,7 @@ const FLIGHT_UPGRADE_AMOUNT = 1;
 const OXYGEN_UPGRADE_AMOUNT = 10;
 const SPEED_UPGRADE_AMOUNT = 18;
 const STAGE_COUNT = 2;
+const UNLOCK_ALL_LEVELS = true;
 const PLAYTEST_INVINCIBLE = false;
 
 const platforms: Platform[] = [
@@ -4136,7 +4137,7 @@ export class PuffinGame {
       return false;
     }
 
-    if (PLAYTEST_INVINCIBLE) {
+    if (UNLOCK_ALL_LEVELS || PLAYTEST_INVINCIBLE) {
       return true;
     }
 
