@@ -181,8 +181,9 @@ const FLIGHT_UPGRADE_AMOUNT = 1;
 const OXYGEN_UPGRADE_AMOUNT = 10;
 const SPEED_UPGRADE_AMOUNT = 18;
 const STAGE_COUNT = 2;
+const STAGE_TWO_LEVEL_COUNT = 2;
 const UNLOCK_ALL_LEVELS = true;
-const PLAYTEST_INVINCIBLE = false;
+const PLAYTEST_INVINCIBLE = true;
 
 const platforms: Platform[] = [
   { x: 0, y: 452, width: 500, height: 54, kind: "snow" },
@@ -1000,6 +1001,182 @@ const stageTwoLevelOnePenguins: Penguin[] = [
   },
 ];
 
+const STAGE_TWO_LEVEL_TWO: LevelBounds = {
+  width: 4300,
+  ceilingY: -1300,
+  groundY: 500,
+};
+
+const stageTwoLevelTwoPlatforms: Platform[] = [
+  { x: 0, y: -1121, width: STAGE_TWO_LEVEL_TWO.width, height: 56, kind: "snow", slope: { startY: 444, endY: -1121 } },
+];
+
+const stageTwoLevelTwoFish: Fish[] = [
+  { x: 780, y: 116, collected: false },
+  { x: 1550, y: -164, collected: false },
+  { x: 2480, y: -503, collected: false },
+  { x: 3380, y: -830, collected: false },
+];
+
+const stageTwoLevelTwoHazards: Hazard[] = [];
+
+const stageTwoLevelTwoTrees: ForestTree[] = [
+  { x: 1910, y: -409, width: 50, height: 158, cut: false, cutProgress: 0, direction: -1, falling: false, fallTimer: 0 },
+];
+
+const stageTwoLevelTwoExitHole: Rect = {
+  x: STAGE_TWO_LEVEL_TWO.width - 96,
+  y: -1096,
+  width: 96,
+  height: 56,
+};
+
+const stageTwoLevelTwoPenguins: Penguin[] = [
+  {
+    x: 610,
+    y: 390,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 220,
+    maxX: 980,
+    speed: 112,
+    direction: 1,
+    alerted: false,
+    health: NORMAL_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    defeated: false,
+  },
+  {
+    x: 980,
+    y: 390,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 540,
+    maxX: 1320,
+    speed: 116,
+    direction: -1,
+    alerted: false,
+    health: NORMAL_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    defeated: false,
+  },
+  {
+    x: 1325,
+    y: 390,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 900,
+    maxX: 1740,
+    speed: 110,
+    direction: 1,
+    alerted: false,
+    health: NORMAL_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    defeated: false,
+  },
+  {
+    x: 1735,
+    y: 390,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 1320,
+    maxX: 2180,
+    speed: 82,
+    direction: -1,
+    alerted: false,
+    health: NORMAL_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    isLumberjack: true,
+    defeated: false,
+  },
+  {
+    x: 2055,
+    y: 390,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 1650,
+    maxX: 2460,
+    speed: 84,
+    direction: 1,
+    alerted: false,
+    health: NORMAL_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    isLumberjack: true,
+    defeated: false,
+  },
+  {
+    x: 2375,
+    y: 390,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 2020,
+    maxX: 2860,
+    speed: 112,
+    direction: -1,
+    alerted: false,
+    health: NORMAL_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    defeated: false,
+  },
+  {
+    x: 2755,
+    y: 390,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 2400,
+    maxX: 3230,
+    speed: 114,
+    direction: 1,
+    alerted: false,
+    health: NORMAL_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    defeated: false,
+  },
+  {
+    x: 3135,
+    y: 390,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 2820,
+    maxX: 3560,
+    speed: 116,
+    direction: -1,
+    alerted: false,
+    health: NORMAL_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    defeated: false,
+  },
+  {
+    x: 3500,
+    y: 390,
+    width: PENGUIN.width,
+    height: PENGUIN.height,
+    minX: 3180,
+    maxX: 3840,
+    speed: 112,
+    direction: 1,
+    alerted: false,
+    health: NORMAL_PENGUIN_HEALTH,
+    hitCooldown: 0,
+    defeated: false,
+  },
+  {
+    x: 3890,
+    y: 380,
+    width: 52,
+    height: 64,
+    minX: 3650,
+    maxX: 4240,
+    speed: 88,
+    direction: -1,
+    alerted: false,
+    health: 4,
+    hitCooldown: 0,
+    isBoss: true,
+    defeated: false,
+  },
+];
+
 const levelFivePenguins: Penguin[] = [
   {
     x: 1050,
@@ -1652,6 +1829,16 @@ export class PuffinGame {
     }
 
     if (this.isEnteringExitHole()) {
+      if (this.currentStage === 2 && this.currentLevel < STAGE_TWO_LEVEL_COUNT) {
+        this.completedLevels.add(this.getLevelKey());
+        this.updateLevelsDisplay();
+        this.currentLevel += 1;
+        this.levelStartFeathers = this.puffinFeathers;
+        this.levelStartPenguinKillCount = this.penguinKillCount;
+        this.restartCurrentLevel();
+        return;
+      }
+
       if (this.currentStage === 2) {
         this.completedLevels.add(this.getLevelKey());
         this.updateLevelsDisplay();
@@ -2271,7 +2458,6 @@ export class PuffinGame {
       }
 
       if (!this.isPuffinOnTree(tree)) {
-        tree.cutProgress = Math.max(0, tree.cutProgress - deltaSeconds * 0.65);
         continue;
       }
 
@@ -2283,7 +2469,6 @@ export class PuffinGame {
       );
 
       if (!lumberjack) {
-        tree.cutProgress = Math.max(0, tree.cutProgress - deltaSeconds * 0.3);
         continue;
       }
 
@@ -3646,7 +3831,7 @@ export class PuffinGame {
       this.spawnSplat(penguin.x + penguin.width / 2, penguin.y + penguin.height);
 
       this.dropFeathers(penguin, penguin.isBoss ? 5 : getFeatherDropAmount());
-      this.dropFishFromStageBossSummon(penguin);
+      this.dropFishFromPenguin(penguin);
     } else {
       this.spawnPenguinHit(penguin.x + penguin.width / 2, penguin.y + penguin.height * 0.42);
     }
@@ -3655,11 +3840,11 @@ export class PuffinGame {
   }
 
   private isLevelTwoBoss(penguin: Penguin): boolean {
-    return this.currentLevel === 2 && penguin.isBoss === true;
+    return this.currentStage === 1 && this.currentLevel === 2 && penguin.isBoss === true;
   }
 
   private isLevelTwoMiner(penguin: Penguin): boolean {
-    return (this.endlessMode || this.currentLevel === 2 || this.currentLevel === 5) && penguin.isMiner === true;
+    return (this.endlessMode || (this.currentStage === 1 && this.currentLevel === 2) || this.currentLevel === 5) && penguin.isMiner === true;
   }
 
   private isLumberjackPenguin(penguin: Penguin): boolean {
@@ -3701,7 +3886,8 @@ export class PuffinGame {
       this.puffin.x = ENDLESS_ZONE.width / 2 - this.puffin.width / 2;
       this.puffin.y = endlessZonePlatforms[1].y - this.puffin.height;
     } else if (this.isStageTwoForestLevel()) {
-      this.puffin.y = stageTwoLevelOnePlatforms[0].y - this.puffin.height;
+      const forestTop = getBestPlatformTopY(this.platforms[0], this.puffin) ?? this.platforms[0].y;
+      this.puffin.y = forestTop - this.puffin.height;
     } else if (this.currentLevel === 3) {
       this.puffin.y = levelThreePlatforms[0].y - this.puffin.height;
     } else if (this.currentLevel === 4) {
@@ -3765,13 +3951,14 @@ export class PuffinGame {
       this.fish = [];
       this.penguins = [];
     } else if (this.isStageTwoForestLevel()) {
-      this.level = { ...STAGE_TWO_LEVEL_ONE };
-      this.platforms = stageTwoLevelOnePlatforms;
-      this.hazards = stageTwoLevelOneHazards;
-      this.exitHole = stageTwoLevelOneExitHole;
-      this.fish = createFish(stageTwoLevelOneFish, false);
-      this.penguins = createPenguinsOnSurfaces(stageTwoLevelOnePenguins, stageTwoLevelOnePlatforms, STAGE_TWO_LEVEL_ONE);
-      this.forestTrees = createForestTrees(stageTwoLevelOneTrees);
+      const forestLevel = this.getStageTwoForestLevelData();
+      this.level = { ...forestLevel.level };
+      this.platforms = forestLevel.platforms;
+      this.hazards = forestLevel.hazards;
+      this.exitHole = forestLevel.exitHole;
+      this.fish = createFish(forestLevel.fish, false);
+      this.penguins = createPenguinsOnSurfaces(forestLevel.penguins, forestLevel.platforms, forestLevel.level);
+      this.forestTrees = createForestTrees(forestLevel.trees);
     } else if (this.currentLevel === 1) {
       this.level = { ...LEVEL };
       this.platforms = platforms;
@@ -3839,7 +4026,8 @@ export class PuffinGame {
     }
 
     this.endlessMode = false;
-    this.currentLevel = this.currentStage === 2 ? 1 : clamp(Math.round(levelNumber), 1, 5);
+    this.currentLevel =
+      this.currentStage === 2 ? clamp(Math.round(levelNumber), 1, STAGE_TWO_LEVEL_COUNT) : clamp(Math.round(levelNumber), 1, 5);
     this.levelStartFeathers = this.puffinFeathers;
     this.levelStartPenguinKillCount = this.penguinKillCount;
     this.restartCurrentLevel();
@@ -4057,7 +4245,57 @@ export class PuffinGame {
   }
 
   private isStageTwoForestLevel(): boolean {
-    return !this.endlessMode && this.currentStage === 2 && this.currentLevel === 1;
+    return !this.endlessMode && this.currentStage === 2 && this.currentLevel >= 1 && this.currentLevel <= STAGE_TWO_LEVEL_COUNT;
+  }
+
+  private isStageTwoSlopedForestLevel(): boolean {
+    return !this.endlessMode && this.currentStage === 2 && this.currentLevel === 2;
+  }
+
+  private isStageTwoSlopedGroundPlatform(platform: Platform): boolean {
+    return this.isStageTwoSlopedForestLevel() && platform === stageTwoLevelTwoPlatforms[0];
+  }
+
+  private getStageTwoVisualSlopeAngle(): number {
+    const ground = stageTwoLevelTwoPlatforms[0];
+
+    if (!this.isStageTwoSlopedForestLevel() || !ground.slope) {
+      return 0;
+    }
+
+    return Math.atan2(ground.slope.endY - ground.slope.startY, ground.width);
+  }
+
+  private getStageTwoForestLevelData(): {
+    exitHole: Rect;
+    fish: Fish[];
+    hazards: Hazard[];
+    level: LevelBounds;
+    penguins: Penguin[];
+    platforms: Platform[];
+    trees: ForestTree[];
+  } {
+    if (this.currentLevel === 2) {
+      return {
+        exitHole: stageTwoLevelTwoExitHole,
+        fish: stageTwoLevelTwoFish,
+        hazards: stageTwoLevelTwoHazards,
+        level: STAGE_TWO_LEVEL_TWO,
+        penguins: stageTwoLevelTwoPenguins,
+        platforms: stageTwoLevelTwoPlatforms,
+        trees: stageTwoLevelTwoTrees,
+      };
+    }
+
+    return {
+      exitHole: stageTwoLevelOneExitHole,
+      fish: stageTwoLevelOneFish,
+      hazards: stageTwoLevelOneHazards,
+      level: STAGE_TWO_LEVEL_ONE,
+      penguins: stageTwoLevelOnePenguins,
+      platforms: stageTwoLevelOnePlatforms,
+      trees: stageTwoLevelOneTrees,
+    };
   }
 
   private showLevels(): void {
@@ -4129,6 +4367,14 @@ export class PuffinGame {
       return { stage: 1, level: 5 };
     }
 
+    if (!this.completedLevels.has(this.getLevelKey(1, 2))) {
+      return { stage: 2, level: 1 };
+    }
+
+    if (!this.completedLevels.has(this.getLevelKey(2, 2))) {
+      return { stage: 2, level: 2 };
+    }
+
     return { stage: 2, level: 1 };
   }
 
@@ -4149,7 +4395,9 @@ export class PuffinGame {
   }
 
   private levelExistsInCurrentStage(levelNumber: number): boolean {
-    return this.currentStage === 1 ? levelNumber >= 1 && levelNumber <= 5 : levelNumber === 1;
+    return this.currentStage === 1
+      ? levelNumber >= 1 && levelNumber <= 5
+      : levelNumber >= 1 && levelNumber <= STAGE_TWO_LEVEL_COUNT;
   }
 
   private updateShopDisplay(): void {
@@ -4457,8 +4705,11 @@ export class PuffinGame {
     }
   }
 
-  private dropFishFromStageBossSummon(penguin: Penguin): void {
-    if (this.currentLevel !== 5 || penguin.summonedByStageBoss !== true || Math.random() >= STAGE_BOSS_SUMMON_FISH_DROP_CHANCE) {
+  private dropFishFromPenguin(penguin: Penguin): void {
+    const canDropFish =
+      this.endlessMode || (this.currentLevel === 5 && penguin.summonedByStageBoss === true);
+
+    if (!canDropFish || Math.random() >= STAGE_BOSS_SUMMON_FISH_DROP_CHANCE) {
       return;
     }
 
@@ -4714,13 +4965,19 @@ export class PuffinGame {
     this.drawCloud(690 - this.cameraX * 0.05, 118, 0.58);
 
     this.context.fillStyle = "rgba(21, 82, 47, 0.42)";
+    const treeLean = this.getStageTwoVisualSlopeAngle() * 0.72;
     for (let x = -((this.cameraX * 0.18) % 240); x < VIEW.width + 240; x += 240) {
-      this.context.fillRect(x + 84, 190, 42, 260);
+      this.context.save();
+      this.context.translate(x + 105, 450);
+      this.context.rotate(treeLean);
+      this.context.translate(-105, -450);
+      this.context.fillRect(84, 190, 42, 260);
       this.context.beginPath();
-      this.context.arc(x + 105, 170, 72, 0, Math.PI * 2);
-      this.context.arc(x + 55, 216, 58, 0, Math.PI * 2);
-      this.context.arc(x + 155, 224, 62, 0, Math.PI * 2);
+      this.context.arc(105, 170, 72, 0, Math.PI * 2);
+      this.context.arc(55, 216, 58, 0, Math.PI * 2);
+      this.context.arc(155, 224, 62, 0, Math.PI * 2);
       this.context.fill();
+      this.context.restore();
     }
 
     this.drawGround();
@@ -4813,6 +5070,11 @@ export class PuffinGame {
 
   private drawGround(): void {
     if (this.isStageTwoForestLevel()) {
+      if (this.isStageTwoSlopedForestLevel()) {
+        this.drawSlopedForestGround();
+        return;
+      }
+
       this.context.fillStyle = "#173b25";
       this.context.fillRect(0, this.level.groundY, VIEW.width, VIEW.height - this.level.groundY);
 
@@ -4854,6 +5116,47 @@ export class PuffinGame {
     }
   }
 
+  private drawSlopedForestGround(): void {
+    const ground = stageTwoLevelTwoPlatforms[0];
+
+    if (!ground.slope) {
+      return;
+    }
+
+    const leftWorldX = this.cameraX - 40;
+    const rightWorldX = this.cameraX + VIEW.width + 40;
+    const leftY = (getPlatformTopY(ground, leftWorldX) ?? ground.slope.startY) - this.cameraY;
+    const rightY = (getPlatformTopY(ground, rightWorldX) ?? ground.slope.endY) - this.cameraY;
+    const bottomY = VIEW.height + 80;
+
+    this.context.fillStyle = "#173b25";
+    this.context.beginPath();
+    this.context.moveTo(-40, leftY);
+    this.context.lineTo(VIEW.width + 40, rightY);
+    this.context.lineTo(VIEW.width + 40, bottomY);
+    this.context.lineTo(-40, bottomY);
+    this.context.closePath();
+    this.context.fill();
+
+    this.context.strokeStyle = "#55b85f";
+    this.context.lineWidth = 12;
+    this.context.beginPath();
+    this.context.moveTo(-40, leftY + 6);
+    this.context.lineTo(VIEW.width + 40, rightY + 6);
+    this.context.stroke();
+
+    this.context.strokeStyle = "#2f7a3f";
+    this.context.lineWidth = 5;
+    for (let x = -((this.cameraX * 0.8) % 54); x < VIEW.width + 54; x += 54) {
+      const worldX = this.cameraX + x;
+      const topY = (getPlatformTopY(ground, worldX) ?? ground.slope.startY) - this.cameraY;
+      this.context.beginPath();
+      this.context.moveTo(x, topY + 16);
+      this.context.lineTo(x + 30, topY + 16);
+      this.context.stroke();
+    }
+  }
+
   private drawForestTrees(): void {
     if (!this.isStageTwoForestLevel()) {
       return;
@@ -4866,8 +5169,17 @@ export class PuffinGame {
 
   private drawForestTree(tree: ForestTree): void {
     const progress = tree.falling ? clamp(tree.fallTimer / 0.55, 0, 1) : 0;
+    const slopeAngle = this.getStageTwoVisualSlopeAngle();
 
     this.context.save();
+
+    if (slopeAngle !== 0) {
+      const pivotX = tree.x + tree.width / 2;
+      const pivotY = tree.y + tree.height;
+      this.context.translate(pivotX, pivotY);
+      this.context.rotate(slopeAngle * 0.8);
+      this.context.translate(-pivotX, -pivotY);
+    }
 
     if (tree.falling) {
       const pivotX = tree.x + tree.width / 2;
@@ -4927,6 +5239,10 @@ export class PuffinGame {
     this.drawEndlessSummitFill();
 
     for (const platform of this.platforms) {
+      if (this.isStageTwoSlopedGroundPlatform(platform)) {
+        continue;
+      }
+
       this.drawPlatform(platform);
     }
 
@@ -5276,6 +5592,30 @@ export class PuffinGame {
     }
   }
 
+  private getGroundAngleForActor(actor: Rect): number {
+    const footY = actor.y + actor.height;
+    const centerX = actor.x + actor.width / 2;
+
+    for (const platform of this.platforms) {
+      if (!platform.slope || platform.ceiling || platform.fluidBarrier) {
+        continue;
+      }
+
+      const platformTop = getPlatformTopY(platform, centerX);
+
+      if (
+        platformTop !== null &&
+        Math.abs(footY - platformTop) < 16 &&
+        actor.x + actor.width > platform.x &&
+        actor.x < platform.x + platform.width
+      ) {
+        return clamp(Math.atan2(platform.slope.endY - platform.slope.startY, platform.width), -0.7, 0.7);
+      }
+    }
+
+    return 0;
+  }
+
   private drawPlatform(platform: Platform): void {
     if (platform.slope) {
       this.drawSlopedPlatform(platform);
@@ -5351,6 +5691,35 @@ export class PuffinGame {
     const visibleHeight = isLevelFourIceberg ? 54 : platform.height;
     const bottomStartY = startY + visibleHeight;
     const bottomEndY = endY + visibleHeight;
+
+    if (this.isStageTwoForestLevel()) {
+      this.context.fillStyle = "#6b4325";
+      this.context.beginPath();
+      this.context.moveTo(platform.x, startY);
+      this.context.lineTo(platform.x + platform.width, endY);
+      this.context.lineTo(platform.x + platform.width, bottomEndY);
+      this.context.lineTo(platform.x, bottomStartY);
+      this.context.closePath();
+      this.context.fill();
+
+      this.context.strokeStyle = "#69c85f";
+      this.context.lineWidth = 12;
+      this.context.beginPath();
+      this.context.moveTo(platform.x + 8, startY + 6);
+      this.context.lineTo(platform.x + platform.width - 8, endY + 6);
+      this.context.stroke();
+
+      this.context.strokeStyle = "rgba(36, 24, 14, 0.24)";
+      this.context.lineWidth = 2;
+      this.context.beginPath();
+      this.context.moveTo(platform.x + 12, startY + 18);
+      this.context.lineTo(platform.x + platform.width - 12, endY + 18);
+      this.context.lineTo(platform.x + platform.width - 12, bottomEndY - 10);
+      this.context.lineTo(platform.x + 12, bottomStartY - 10);
+      this.context.closePath();
+      this.context.stroke();
+      return;
+    }
 
     if (isLevelFourIceberg) {
       const baseY = this.level.groundY + 180;
@@ -5707,9 +6076,11 @@ export class PuffinGame {
   private drawPenguin(penguin: Penguin): void {
     const centerX = penguin.x + penguin.width / 2;
     const footY = penguin.y + penguin.height;
+    const groundAngle = penguin.grounded === true ? this.getGroundAngleForActor(penguin) : 0;
 
     this.context.save();
     this.context.translate(centerX, footY);
+    this.context.rotate(groundAngle);
     this.context.scale(penguin.direction, 1);
     this.context.scale(penguin.isBoss ? 0.98 : 0.78, penguin.isBoss ? 0.98 : 0.78);
 
@@ -5988,6 +6359,7 @@ export class PuffinGame {
   private drawPuffin(): void {
     const centerX = this.puffin.x + this.puffin.width / 2;
     const footY = this.puffin.y + this.puffin.height - 5;
+    const groundAngle = this.grounded ? this.getGroundAngleForActor(this.puffin) : 0;
     const peckReach = this.peckTimer > 0 ? 14 : 0;
     const ducking = this.puffin.height < PUFFIN.height;
     const isDamageFlash =
@@ -5996,6 +6368,7 @@ export class PuffinGame {
     this.context.save();
     this.context.globalAlpha = isDamageFlash ? 0.48 : 1;
     this.context.translate(centerX, footY);
+    this.context.rotate(groundAngle);
     this.context.scale(this.facing, 1);
     this.context.scale(0.68, ducking ? 0.52 : 0.68);
 
