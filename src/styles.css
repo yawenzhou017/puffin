@@ -701,6 +701,22 @@ body {
   gap: 12px;
 }
 
+.playtest-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  color: #f7fbff;
+  font-weight: 800;
+}
+
+.playtest-switch input {
+  width: 20px;
+  height: 20px;
+  accent-color: #ffbf4f;
+  cursor: pointer;
+}
+
 .feather-total {
   position: absolute;
   top: 22px;

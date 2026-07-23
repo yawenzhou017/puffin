@@ -183,7 +183,7 @@ const SPEED_UPGRADE_AMOUNT = 18;
 const STAGE_COUNT = 2;
 const STAGE_TWO_LEVEL_COUNT = 3;
 const UNLOCK_ALL_LEVELS = true;
-const PLAYTEST_INVINCIBLE = false;
+let playtestingEnabled = true;
 
 const platforms: Platform[] = [
   { x: 0, y: 452, width: 500, height: 54, kind: "snow" },
@@ -1179,7 +1179,7 @@ const stageTwoLevelTwoPenguins: Penguin[] = [
 
 const STAGE_TWO_LEVEL_THREE: LevelBounds = {
   width: 4300,
-  ceilingY: -1300,
+  ceilingY: -2300,
   groundY: 500,
 };
 
@@ -1702,6 +1702,7 @@ export class PuffinGame {
   private readonly pauseMainMenuButton = document.querySelector<HTMLButtonElement>("#pause-main-menu");
   private readonly pauseOverlay = document.querySelector<HTMLElement>("#pause-overlay");
   private readonly playButton = document.querySelector<HTMLButtonElement>("#play-game");
+  private readonly playtestingToggle = document.querySelector<HTMLInputElement>("#playtesting-toggle");
   private readonly oxygenUpgradeButton = document.querySelector<HTMLButtonElement>("#oxygen-upgrade");
   private readonly oxygenUpgradeCostLabel = document.querySelector<HTMLElement>("#oxygen-upgrade-cost");
   private readonly resumeButton = document.querySelector<HTMLButtonElement>("#resume-game");
@@ -1728,7 +1729,11 @@ export class PuffinGame {
 
     this.context = context;
     this.resize();
+    if (this.playtestingToggle) {
+      this.playtestingToggle.checked = playtestingEnabled;
+    }
     this.playButton?.addEventListener("click", this.handlePlay);
+    this.playtestingToggle?.addEventListener("change", this.handlePlaytestingToggle);
     this.endlessZoneButton?.addEventListener("click", this.handleEndlessZone);
     this.levelsBackButton?.addEventListener("click", this.handleLevelsBack);
     for (const levelButton of this.levelButtons) {
@@ -1770,6 +1775,7 @@ export class PuffinGame {
   stop(): void {
     cancelAnimationFrame(this.animationFrame);
     this.playButton?.removeEventListener("click", this.handlePlay);
+    this.playtestingToggle?.removeEventListener("change", this.handlePlaytestingToggle);
     this.endlessZoneButton?.removeEventListener("click", this.handleEndlessZone);
     this.levelsBackButton?.removeEventListener("click", this.handleLevelsBack);
     for (const levelButton of this.levelButtons) {
@@ -1859,7 +1865,7 @@ export class PuffinGame {
         ? PUFFIN.bossJumpSpeed
         : this.isNearBoss() ? PUFFIN.bossJumpSpeed : PUFFIN.jumpSpeed;
       this.velocity.y = -jumpSpeed;
-      if (!PLAYTEST_INVINCIBLE) {
+      if (!playtestingEnabled) {
         this.flight = Math.max(0, this.flight - PUFFIN.jumpFlightCost);
       }
       this.grounded = false;
@@ -1868,7 +1874,7 @@ export class PuffinGame {
 
     this.jumpQueued = false;
     this.updateFlight(deltaSeconds);
-    if (PLAYTEST_INVINCIBLE) {
+    if (playtestingEnabled) {
       this.health = this.maxHealth;
       this.oxygen = this.maxOxygen;
       this.flight = this.maxFlight;
@@ -2012,7 +2018,7 @@ export class PuffinGame {
           : PUFFIN.minFlightRiseSpeed + (1 - altitudeProgress) * (PUFFIN.maxFlightRiseSpeed - PUFFIN.minFlightRiseSpeed);
 
       this.flying = true;
-      if (!PLAYTEST_INVINCIBLE && !bossArenaJump) {
+      if (!playtestingEnabled && !bossArenaJump) {
         this.flight = Math.max(0, this.flight - deltaSeconds * PUFFIN.flightDrainRate);
       }
       this.velocity.y += PUFFIN.flightGravity * deltaSeconds;
@@ -2035,7 +2041,7 @@ export class PuffinGame {
       this.oxygen = Math.max(0, this.oxygen - PUFFIN.oxygenDrainRate * deltaSeconds);
 
       if (this.oxygen <= 0) {
-        if (PLAYTEST_INVINCIBLE) {
+        if (playtestingEnabled) {
           this.oxygen = this.maxOxygen;
           return;
         }
@@ -2135,13 +2141,6 @@ export class PuffinGame {
       return;
     }
 
-    if (this.puffin.y < this.level.ceilingY) {
-      this.puffin.y = this.level.ceilingY;
-
-      if (this.velocity.y < 0) {
-        this.velocity.y = 0;
-      }
-    }
   }
 
   private resolveVerticalCollisions(previousY: number): void {
@@ -3528,7 +3527,7 @@ export class PuffinGame {
   }
 
   private checkHazards(): void {
-    if (PLAYTEST_INVINCIBLE) {
+    if (playtestingEnabled) {
       return;
     }
 
@@ -3723,7 +3722,7 @@ export class PuffinGame {
   }
 
   private damagePuffin(knockbackDirection: -1 | 1, amount = 1): void {
-    if (PLAYTEST_INVINCIBLE) {
+    if (playtestingEnabled) {
       this.health = this.maxHealth;
       this.damageInvulnerability = PUFFIN.damageInvulnerability;
       this.penguinContactGrace = PUFFIN.damageInvulnerability;
@@ -3753,7 +3752,7 @@ export class PuffinGame {
   }
 
   private dieAndShowRetry(): void {
-    if (PLAYTEST_INVINCIBLE) {
+    if (playtestingEnabled) {
       this.health = this.maxHealth;
       this.oxygen = this.maxOxygen;
       this.flight = this.maxFlight;
@@ -4507,7 +4506,7 @@ export class PuffinGame {
       return false;
     }
 
-    if (UNLOCK_ALL_LEVELS || PLAYTEST_INVINCIBLE) {
+    if (UNLOCK_ALL_LEVELS || playtestingEnabled) {
       return true;
     }
 
@@ -4964,7 +4963,7 @@ export class PuffinGame {
     this.cameraX = this.getTargetCameraX();
     const targetY = this.getTargetCameraY();
 
-    if (this.currentLevel === 1) {
+    if (this.shouldLockVerticalCamera()) {
       this.cameraY = targetY;
       return;
     }
@@ -4979,14 +4978,22 @@ export class PuffinGame {
   }
 
   private getTargetCameraY(): number {
-    if (this.currentLevel === 1) {
-      return 0;
+    if (this.shouldLockVerticalCamera()) {
+      return this.getLockedCameraY();
     }
 
     const target = this.puffin.y - VIEW.height * 0.46;
     const minY = Math.min(0, this.level.ceilingY);
     const maxY = Math.max(minY, this.level.groundY - VIEW.height + 80);
     return clamp(target, minY, maxY);
+  }
+
+  private shouldLockVerticalCamera(): boolean {
+    return !this.endlessMode && this.currentStage === 1 && this.currentLevel === 1;
+  }
+
+  private getLockedCameraY(): number {
+    return 0;
   }
 
   private render(): void {
@@ -6783,6 +6790,19 @@ export class PuffinGame {
     this.showLevels();
   };
 
+  private handlePlaytestingToggle = (): void => {
+    playtestingEnabled = this.playtestingToggle?.checked ?? false;
+
+    if (playtestingEnabled) {
+      this.health = this.maxHealth;
+      this.oxygen = this.maxOxygen;
+      this.flight = this.maxFlight;
+    }
+
+    this.updateLevelsDisplay();
+    this.updateExternalHud();
+  };
+
   private handleEndlessZone = (): void => {
     this.startEndlessZone();
   };
@@ -7087,17 +7107,6 @@ function getPenguinSurfaceY(penguin: Rect, levelPlatforms: Platform[], level: Le
   return Math.min(...platformTops);
 }
 
-function getAltitudeProgress(actor: Rect, level: LevelBounds): number {
-  const flyableHeight = level.groundY - level.ceilingY - actor.height;
-  const distanceFromGround = level.groundY - actor.height - actor.y;
-
-  if (flyableHeight <= 0) {
-    return 1;
-  }
-
-  return clamp(distanceFromGround / flyableHeight, 0, 1);
-}
-
 function getSplatParticleColor(kind: SplatEffect["kind"], size: number): string {
   if (kind === "fish") {
     return size > 6 ? "#ffbf4f" : "#fff07a";
@@ -7177,6 +7186,17 @@ function getFeatherDropAmount(): number {
 
 function getUpgradeCost(upgradeCount: number): number {
   return UPGRADE_FIRST_COST + upgradeCount * UPGRADE_COST_INCREASE;
+}
+
+function getAltitudeProgress(actor: Rect, level: LevelBounds): number {
+  const flyableHeight = level.groundY - level.ceilingY - actor.height;
+  const distanceFromGround = level.groundY - actor.height - actor.y;
+
+  if (flyableHeight <= 0) {
+    return 1;
+  }
+
+  return clamp(distanceFromGround / flyableHeight, 0, 1);
 }
 
 function clamp(value: number, min: number, max: number): number {
